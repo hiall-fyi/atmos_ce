@@ -1,0 +1,6 @@
+{
+  "name": "Atmos CE",
+  "render_readme": true,
+  "country": ["GB", "US", "CA", "DE", "TW"],
+  "homeassistant": "2024.12.0"
+}

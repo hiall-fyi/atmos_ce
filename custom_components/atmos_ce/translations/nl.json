@@ -1,0 +1,380 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Weerbron toevoegen",
+        "description": "Kies een weerbron voor jouw regio. Je kunt later in de instellingen aangeven welke gegevens je van elke bron wilt ontvangen.",
+        "data": {
+          "source": "Weerbron"
+        },
+        "data_description": {
+          "source": "Kies de weerbron die je wilt toevoegen."
+        }
+      },
+      "configure_source": {
+        "title": "{source_name} instellen",
+        "description": "Stel je instellingen in voor {source_name}. Weersvoorspellingen, luchtkwaliteit en astronomische gegevens worden automatisch weergegeven — je kunt later in de opties aanpassen wat je te zien krijgt.",
+        "data": {
+          "api_key": "API-sleutel",
+          "regions": "Regio's",
+          "local_authorities": "Lokale overheden",
+          "counties": "Provincies",
+          "country": "Land",
+          "state": "Staat",
+          "province": "Provincie",
+          "countries": "Landen",
+          "provinces": "Provincies",
+          "location_filters": "Locatiefilters (optioneel)",
+          "update_interval": "Update-interval (minuten)",
+          "enabled": "Ingeschakeld"
+        },
+        "data_description": {
+          "api_key": "Uw API-sleutel voor deze weerdienst.",
+          "regions": "Te monitoren regio’s.",
+          "local_authorities": "Lokale overheden moeten hierop toezien.",
+          "counties": "Provincies die in de gaten moeten worden gehouden.",
+          "country": "Land dat moet worden gemonitord.",
+          "state": "De staat zal toezicht houden.",
+          "province": "Provincie die moet worden gecontroleerd.",
+          "countries": "Landen om in de gaten te houden. Als je een specifieke nationale bron hebt ingeschakeld (bijvoorbeeld de Deutscher Wetterdienst voor Duitsland, het Met Office voor het Verenigd Koninkrijk, Environment Canada of de NWS), schakel dat land hier dan uit om dubbele waarschuwingen te voorkomen.",
+          "provinces": "Te controleren provincies.",
+          "location_filters": "Optionele filters, gescheiden door komma’s, om meldingen te filteren op plaatsnaam.",
+          "update_interval": "Hoe vaak moet er op nieuwe gegevens worden gecontroleerd (in minuten, 5–1440).",
+          "enabled": "Of deze bron actief is."
+        }
+      },
+      "forecast_location": {
+        "title": "Locatie voor prognose instellen",
+        "description": "Kies waarvoor je weersvoorspellingen, luchtkwaliteit en astronomische gegevens wilt zien.",
+        "data": {
+          "location_name": "Naam van de locatie",
+          "forecast_latitude": "Breedtegraad",
+          "forecast_longitude": "Lengtegraad"
+        },
+        "data_description": {
+          "location_name": "Een duidelijke naam voor deze locatie (bijv. Thuis, Kantoor).",
+          "forecast_latitude": "Breedtegraad van de locatie (-90 tot 90).",
+          "forecast_longitude": "Lengtegraad van de locatie (-180 tot 180)."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Meld je opnieuw aan op {source_name}",
+        "description": "De API-sleutel voor {source_name} is niet langer geldig. Voer een nieuwe in.",
+        "data": {
+          "api_key": "API-sleutel"
+        },
+        "data_description": {
+          "api_key": "Uw nieuwe API-sleutel."
+        }
+      },
+      "reconfigure": {
+        "title": "{source_name} opnieuw configureren",
+        "description": "De instellingen voor {source_name} bijwerken.",
+        "data": {
+          "api_key": "API-sleutel",
+          "regions": "Regio's",
+          "local_authorities": "Lokale overheden",
+          "counties": "Provincies",
+          "country": "Land",
+          "state": "Staat",
+          "province": "Provincie",
+          "countries": "Landen",
+          "provinces": "Provincies",
+          "location_filters": "Locatiefilters (optioneel)",
+          "update_interval": "Update-interval (minuten)",
+          "enabled": "Ingeschakeld"
+        },
+        "data_description": {
+          "api_key": "Uw API-sleutel voor deze weerdienst.",
+          "regions": "Te monitoren regio’s.",
+          "local_authorities": "Lokale overheden moeten hierop toezien.",
+          "counties": "Provincies die in de gaten moeten worden gehouden.",
+          "country": "Land dat moet worden gemonitord.",
+          "state": "De staat zal toezicht houden.",
+          "province": "Provincie die moet worden gecontroleerd.",
+          "countries": "Landen om in de gaten te houden. Als je een specifieke nationale bron hebt ingeschakeld (bijv. de Deutscher Wetterdienst voor Duitsland, het Met Office voor het Verenigd Koninkrijk, Environment Canada of de NWS), schakel dat land hier dan uit om dubbele waarschuwingen te voorkomen.",
+          "provinces": "Te controleren provincies.",
+          "location_filters": "Optionele filters, gescheiden door komma’s, om meldingen te filteren op plaatsnaam.",
+          "update_interval": "Hoe vaak moet er op nieuwe gegevens worden gecontroleerd (in minuten, 5–1440).",
+          "enabled": "Of deze bron actief is."
+        }
+      }
+    },
+    "error": {
+      "validation_timeout": "De verbinding is verbroken. Probeer het nog eens.",
+      "no_source_selected": "Kies een weerbron.",
+      "validation_error": "Configuratiecontrole mislukt: {error}",
+      "validation_failed": "Er is een fout opgetreden. Controleer je instellingen en probeer het opnieuw.",
+      "source_not_found": "De geselecteerde weerbron is niet gevonden.",
+      "invalid_auth": "Ongeldige API-sleutel. Controleer deze en probeer het opnieuw.",
+      "location_name_required": "De naam van de locatie is verplicht.",
+      "latitude_required": "Breedtegraad is vereist.",
+      "longitude_required": "De lengtegraad is verplicht.",
+      "invalid_latitude_format": "Ongeldige breedtegraad. Moet een getal zijn.",
+      "invalid_longitude_format": "Ongeldige lengtegraadnotatie. Moet een getal zijn.",
+      "invalid_latitude_range": "De breedtegraad moet tussen -90 en 90 liggen.",
+      "invalid_longitude_range": "De lengtegraad moet tussen -180 en 180 liggen.",
+      "unknown": "Er is een onverwachte fout opgetreden."
+    },
+    "abort": {
+      "already_configured": "This source is already configured",
+      "source_not_found": "Selected weather warning source not found",
+      "invalid_state": "Configuration flow reached an invalid state. Please restart.",
+      "missing_source_id": "Configuration is missing source information. Please reconfigure.",
+      "reauth_successful": "Re-authentication was successful.",
+      "entry_not_found": "Configuration entry not found."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "{source_name} configureren",
+        "description": "Pas uw instellingen aan en kies welke gegevenstypen u uit deze bron wilt gebruiken.",
+        "data": {
+          "enabled": "Ingeschakeld",
+          "update_interval": "Update-interval (minuten)",
+          "location_filters": "Locatiefilters (optioneel)",
+          "regions": "Regio's",
+          "local_authorities": "Lokale overheden",
+          "counties": "Provincies",
+          "country": "Land",
+          "state": "Staat",
+          "province": "Provincie",
+          "countries": "Landen",
+          "provinces": "Provincies",
+          "api_key": "API-sleutel",
+          "enable_warnings": "Waarschuwingen",
+          "enable_forecast": "Prognoses",
+          "enable_air_quality": "Luchtkwaliteit",
+          "forecast_latitude": "Verwachte breedtegraad",
+          "forecast_longitude": "Verwachte lengtegraad"
+        },
+        "data_description": {
+          "enabled": "Schakel deze bron in of uit.",
+          "update_interval": "Hoe vaak moet er op nieuwe gegevens worden gecontroleerd (in minuten, 5–1440).",
+          "location_filters": "Optionele filters, gescheiden door komma’s, om meldingen te filteren op plaatsnaam.",
+          "regions": "Te monitoren regio’s.",
+          "local_authorities": "Lokale overheden moeten hierop toezien.",
+          "counties": "Provincies die in de gaten moeten worden gehouden.",
+          "country": "Land dat moet worden gemonitord.",
+          "state": "De staat zal toezicht houden.",
+          "province": "Provincie die moet worden gecontroleerd.",
+          "countries": "Landen om in de gaten te houden. Als je een specifieke nationale bron hebt ingeschakeld (bijv. de Duitse weerdienst voor Duitsland, het Met Office voor het Verenigd Koninkrijk, Environment Canada of de NWS), schakel dat land hier dan uit om dubbele waarschuwingen te voorkomen.",
+          "provinces": "Te controleren provincies.",
+          "api_key": "Uw API-sleutel voor deze weerdienst.",
+          "enable_warnings": "Toon weerswaarschuwingen van deze bron.",
+          "enable_forecast": "Toon de huidige weersomstandigheden en de voorspellingen per uur en per dag.",
+          "enable_air_quality": "Geef de luchtkwaliteitswaarden weer (PM2,5, ozon, AQI, enz.).",
+          "forecast_latitude": "Breedtegraad voor voorspellingsgegevens (-90 tot 90). Standaard ingesteld op uw thuislocatie.",
+          "forecast_longitude": "Lengtegraad voor voorspellingsgegevens (-180 tot 180). Standaard ingesteld op uw thuislocatie."
+        }
+      }
+    },
+    "error": {
+      "validation_timeout": "De verbinding is verbroken. Probeer het nog eens.",
+      "validation_error": "Configuratiecontrole mislukt: {error}",
+      "validation_failed": "Er is een fout opgetreden. Controleer je instellingen en probeer het opnieuw.",
+      "unknown": "Er is een onverwachte fout opgetreden."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "temperature": {
+        "name": "Temperatuur"
+      },
+      "apparent_temperature": {
+        "name": "Gevoels temperatuur"
+      },
+      "dew_point": {
+        "name": "Dauwpunt"
+      },
+      "humidity": {
+        "name": "Luchtvochtigheid"
+      },
+      "pressure": {
+        "name": "Druk"
+      },
+      "surface_pressure": {
+        "name": "Oppervlaktedruk"
+      },
+      "wind_speed": {
+        "name": "Windsnelheid"
+      },
+      "wind_direction": {
+        "name": "Windrichting"
+      },
+      "wind_gusts": {
+        "name": "Windvlagen"
+      },
+      "precipitation": {
+        "name": "Neerslag"
+      },
+      "rain": {
+        "name": "Regen"
+      },
+      "showers": {
+        "name": "Regens"
+      },
+      "snowfall": {
+        "name": "Sneeuwval"
+      },
+      "cloud_cover": {
+        "name": "Bewolking"
+      },
+      "cloud_cover_low": {
+        "name": "Bewolking (laag)"
+      },
+      "cloud_cover_mid": {
+        "name": "Bewolking (matig)"
+      },
+      "cloud_cover_high": {
+        "name": "Bewolking (hoog)"
+      },
+      "uv_index": {
+        "name": "UV-index"
+      },
+      "uv_index_clear_sky": {
+        "name": "UV-index (heldere hemel)"
+      },
+      "visibility": {
+        "name": "Zichtbaarheid"
+      },
+      "cape": {
+        "name": "CAPE"
+      },
+      "lifted_index": {
+        "name": "Verhoogde index"
+      },
+      "freezing_level_height": {
+        "name": "Vriesgrenshoogte"
+      },
+      "soil_temperature": {
+        "name": "Bodemtemperatuur"
+      },
+      "soil_moisture": {
+        "name": "Bodemvochtigheid"
+      },
+      "european_aqi": {
+        "name": "Europese luchtkwaliteitsindex"
+      },
+      "us_aqi": {
+        "name": "Amerikaanse luchtkwaliteitsindex (AQI)"
+      },
+      "pm25": {
+        "name": "PM2,5"
+      },
+      "pm10": {
+        "name": "PM10"
+      },
+      "nitrogen_dioxide": {
+        "name": "Stikstofdioxide"
+      },
+      "ozone": {
+        "name": "Ozon"
+      },
+      "sulphur_dioxide": {
+        "name": "Zwaveldioxide"
+      },
+      "carbon_monoxide": {
+        "name": "Koolmonoxide"
+      },
+      "carbon_dioxide": {
+        "name": "Koolstofdioxide"
+      },
+      "golden_hour_morning_start": {
+        "name": "Golden Hour: een goed begin van de dag"
+      },
+      "golden_hour_morning_end": {
+        "name": "Het einde van de gouden uurtjes in de ochtend"
+      },
+      "golden_hour_evening_start": {
+        "name": "Golden Hour: Avondstart"
+      },
+      "golden_hour_evening_end": {
+        "name": "Het einde van de avond tijdens het gouden uur"
+      },
+      "blue_hour_morning_start": {
+        "name": "Blue Hour: begin van de ochtend"
+      },
+      "blue_hour_evening_start": {
+        "name": "Blauw uur – Begin van de avond"
+      },
+      "moon_phase": {
+        "name": "Maanfase",
+        "state": {
+          "new_moon": "Nieuwe maan",
+          "waxing_crescent": "Wassende maan",
+          "first_quarter": "Eerste kwartaal",
+          "waxing_gibbous": "Halve maan",
+          "full_moon": "Volle maan",
+          "waning_gibbous": "Afnemende maan",
+          "last_quarter": "Laatste kwartaal",
+          "waning_crescent": "Afnemende maansikkel"
+        }
+      },
+      "moonrise": {
+        "name": "Maanopgang"
+      },
+      "moonset": {
+        "name": "Maansondergang"
+      },
+      "daylight_duration": {
+        "name": "Daglichtduur"
+      },
+      "active_alert": {
+        "name": "Actieve waarschuwing"
+      },
+      "upcoming_alert": {
+        "name": "Aankomende melding"
+      },
+      "alert_count": {
+        "name": "Aantal meldingen"
+      },
+      "wind_shear_0_6km": {
+        "name": "Windschering (0–6 km)"
+      },
+      "lapse_rate_700_500": {
+        "name": "Lapse-snelheid (700–500 hPa)"
+      },
+      "lcl_height": {
+        "name": "LCL-hoogte"
+      },
+      "stability_assessment": {
+        "name": "Stabiliteitsbeoordeling"
+      },
+      "dew_point_comfort": {
+        "name": "Dauwpuntcomfort"
+      },
+      "visibility_category": {
+        "name": "Zichtbaarheidsklasse"
+      },
+      "feels_like_context": {
+        "name": "Het voelt alsof..."
+      },
+      "pressure_trend": {
+        "name": "Drukontwikkeling"
+      },
+      "blue_hour_morning_end": {
+        "name": "Het blauwe uur – het einde van de ochtend"
+      },
+      "blue_hour_evening_end": {
+        "name": "Het blauwe uur – Einde van de avond"
+      }
+    },
+    "binary_sensor": {
+      "alert_active": {
+        "name": "Waarschuwing actief"
+      }
+    },
+    "weather": {
+      "weather": {
+        "name": "Het weer"
+      }
+    }
+  },
+  "exceptions": {
+    "fetch_failed": {
+      "message": "Het ophalen van gegevens van {source_name} is mislukt: {error}"
+    }
+  }
+}

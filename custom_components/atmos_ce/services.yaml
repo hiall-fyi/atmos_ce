@@ -1,0 +1,24 @@
+get_extended_forecast:
+  name: Get Extended Forecast
+  description: >-
+    Returns the full hourly or daily forecast data with all fields,
+    including dew point, CAPE, rain/showers/snowfall breakdown,
+    and other extended fields not available through the standard
+    weather.get_forecasts service.
+  fields:
+    config_entry_id:
+      name: Config Entry ID
+      description: The config entry ID of the Atmos CE source.
+      required: true
+      selector:
+        config_entry:
+          integration: atmos_ce
+    type:
+      name: Forecast Type
+      description: Type of forecast to return.
+      default: hourly
+      selector:
+        select:
+          options:
+            - hourly
+            - daily

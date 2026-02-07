@@ -1,0 +1,104 @@
+{
+  "entity": {
+    "sensor": {
+      "temperature": { "default": "mdi:thermometer" },
+      "apparent_temperature": { "default": "mdi:thermometer" },
+      "dew_point": { "default": "mdi:water" },
+      "humidity": { "default": "mdi:water-percent" },
+      "pressure": { "default": "mdi:gauge" },
+      "surface_pressure": { "default": "mdi:gauge" },
+      "wind_speed": { "default": "mdi:weather-windy" },
+      "wind_direction": { "default": "mdi:compass" },
+      "wind_gusts": { "default": "mdi:weather-windy-variant" },
+      "precipitation": { "default": "mdi:weather-rainy" },
+      "rain": { "default": "mdi:weather-rainy" },
+      "showers": { "default": "mdi:weather-pouring" },
+      "snowfall": { "default": "mdi:weather-snowy" },
+      "cloud_cover": { "default": "mdi:weather-cloudy" },
+      "cloud_cover_low": { "default": "mdi:weather-cloudy" },
+      "cloud_cover_mid": { "default": "mdi:weather-cloudy" },
+      "cloud_cover_high": { "default": "mdi:weather-cloudy" },
+      "uv_index": { "default": "mdi:weather-sunny-alert" },
+      "uv_index_clear_sky": { "default": "mdi:weather-sunny" },
+      "visibility": { "default": "mdi:eye" },
+      "cape": { "default": "mdi:weather-lightning" },
+      "lifted_index": { "default": "mdi:weather-lightning" },
+      "freezing_level_height": { "default": "mdi:snowflake-melt" },
+      "soil_temperature": { "default": "mdi:thermometer" },
+      "soil_moisture": { "default": "mdi:water-percent" },
+      "european_aqi": { "default": "mdi:air-filter" },
+      "us_aqi": { "default": "mdi:air-filter" },
+      "pm25": { "default": "mdi:molecule" },
+      "pm10": { "default": "mdi:molecule" },
+      "nitrogen_dioxide": { "default": "mdi:molecule" },
+      "ozone": { "default": "mdi:molecule" },
+      "sulphur_dioxide": { "default": "mdi:molecule" },
+      "carbon_monoxide": { "default": "mdi:molecule-co" },
+      "carbon_dioxide": { "default": "mdi:molecule-co2" },
+      "golden_hour_morning_start": { "default": "mdi:weather-sunset-up" },
+      "golden_hour_morning_end": { "default": "mdi:weather-sunset-up" },
+      "golden_hour_evening_start": { "default": "mdi:weather-sunset-down" },
+      "golden_hour_evening_end": { "default": "mdi:weather-sunset-down" },
+      "blue_hour_morning_start": { "default": "mdi:weather-night" },
+      "blue_hour_morning_end": { "default": "mdi:weather-night" },
+      "blue_hour_evening_start": { "default": "mdi:weather-night" },
+      "blue_hour_evening_end": { "default": "mdi:weather-night" },
+      "moon_phase": { "default": "mdi:moon-waning-gibbous" },
+      "moonrise": { "default": "mdi:arrow-up-circle" },
+      "moonset": { "default": "mdi:arrow-down-circle" },
+      "daylight_duration": { "default": "mdi:white-balance-sunny" },
+      "active_alert": { "default": "mdi:alert" },
+      "upcoming_alert": { "default": "mdi:clock-alert" },
+      "alert_count": { "default": "mdi:counter" },
+      "wind_shear_0_6km": { "default": "mdi:weather-windy-variant" },
+      "lapse_rate_700_500": { "default": "mdi:thermometer-chevron-down" },
+      "lcl_height": { "default": "mdi:arrow-collapse-up" },
+      "stability_assessment": {
+        "default": "mdi:weather-lightning",
+        "state": {
+          "none": "mdi:weather-sunny",
+          "marginal": "mdi:weather-partly-cloudy",
+          "slight": "mdi:weather-cloudy-alert",
+          "enhanced": "mdi:weather-lightning",
+          "moderate": "mdi:weather-lightning-rainy",
+          "high": "mdi:alert-octagon",
+          "unknown": "mdi:help-circle-outline"
+        }
+      },
+      "dew_point_comfort": {
+        "default": "mdi:water-thermometer",
+        "state": {
+          "dry": "mdi:water-off",
+          "comfortable": "mdi:emoticon-happy",
+          "slightly_humid": "mdi:water-percent",
+          "humid": "mdi:water",
+          "oppressive": "mdi:water-alert"
+        }
+      },
+      "visibility_category": {
+        "default": "mdi:eye",
+        "state": {
+          "clear": "mdi:eye",
+          "good": "mdi:eye",
+          "moderate": "mdi:eye-minus",
+          "poor": "mdi:eye-off",
+          "fog": "mdi:weather-fog"
+        }
+      },
+      "feels_like_context": {
+        "default": "mdi:thermometer"
+      },
+      "pressure_trend": {
+        "default": "mdi:gauge",
+        "state": {
+          "rising": "mdi:trending-up",
+          "steady": "mdi:trending-neutral",
+          "falling": "mdi:trending-down"
+        }
+      }
+    },
+    "binary_sensor": {
+      "alert_active": { "default": "mdi:alert-circle" }
+    }
+  }
+}

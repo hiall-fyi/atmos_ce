@@ -1,0 +1,380 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Ajouter une source météo",
+        "description": "Choisissez une source météo pour votre région. Vous pourrez ensuite sélectionner les données souhaitées pour chaque source dans les options.",
+        "data": {
+          "source": "Source météo"
+        },
+        "data_description": {
+          "source": "Sélectionnez la source météo que vous souhaitez ajouter."
+        }
+      },
+      "configure_source": {
+        "title": "Configurer l'{source_name}",
+        "description": "Configurez vos paramètres pour l'application «{source_name}». Les prévisions météo, la qualité de l'air et les données astronomiques sont incluses par défaut ; vous pourrez modifier ces affichages ultérieurement dans les options.",
+        "data": {
+          "api_key": "Clé API",
+          "regions": "Régions",
+          "local_authorities": "Collectivités locales",
+          "counties": "Comtés",
+          "country": "Pays",
+          "state": "État",
+          "province": "Province",
+          "countries": "Pays",
+          "provinces": "Provinces",
+          "location_filters": "Filtres de localisation (facultatif)",
+          "update_interval": "Intervalle de mise à jour (en minutes)",
+          "enabled": "Activé"
+        },
+        "data_description": {
+          "api_key": "Votre clé API pour ce service météo.",
+          "regions": "Régions à surveiller.",
+          "local_authorities": "Les autorités locales devront assurer un suivi.",
+          "counties": "Comtés à surveiller.",
+          "country": "Pays à surveiller.",
+          "state": "État à surveiller.",
+          "province": "Province à surveiller.",
+          "countries": "Pays à surveiller. Si vous avez activé une source nationale spécifique (par exemple, le Deutscher Wetterdienst pour l'Allemagne, le Met Office pour le Royaume-Uni, Environnement Canada ou le NWS), désélectionnez ce pays ici pour éviter les alertes en double.",
+          "provinces": "Provinces à surveiller.",
+          "location_filters": "Filtres facultatifs séparés par des virgules pour affiner les alertes en fonction du nom du lieu.",
+          "update_interval": "À quelle fréquence vérifier la présence de nouvelles données (en minutes, de 5 à 1 440).",
+          "enabled": "Si cette source est active."
+        }
+      },
+      "forecast_location": {
+        "title": "Définir l'emplacement de prévision",
+        "description": "Choisissez la région pour laquelle vous souhaitez obtenir les prévisions météo, la qualité de l'air et les données astronomiques.",
+        "data": {
+          "location_name": "Nom du lieu",
+          "forecast_latitude": "Latitude",
+          "forecast_longitude": "Longitude"
+        },
+        "data_description": {
+          "location_name": "Un nom descriptif pour cet emplacement (par exemple, Maison, Bureau).",
+          "forecast_latitude": "Latitude du lieu (-90 à 90).",
+          "forecast_longitude": "Longitude du lieu (-180 à 180)."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Se reconnecter à {source_name}",
+        "description": "La clé API pour {source_name} n'est plus valide. Veuillez en saisir une nouvelle.",
+        "data": {
+          "api_key": "Clé API"
+        },
+        "data_description": {
+          "api_key": "Votre nouvelle clé API."
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigurer {source_name}",
+        "description": "Mettre à jour les paramètres d'{source_name}",
+        "data": {
+          "api_key": "Clé API",
+          "regions": "Régions",
+          "local_authorities": "Collectivités locales",
+          "counties": "Comtés",
+          "country": "Pays",
+          "state": "État",
+          "province": "Province",
+          "countries": "Pays",
+          "provinces": "Provinces",
+          "location_filters": "Filtres de localisation (facultatif)",
+          "update_interval": "Intervalle de mise à jour (en minutes)",
+          "enabled": "Activé"
+        },
+        "data_description": {
+          "api_key": "Votre clé API pour ce service météo.",
+          "regions": "Régions à surveiller.",
+          "local_authorities": "Les autorités locales devront assurer un suivi.",
+          "counties": "Comtés à surveiller.",
+          "country": "Pays à surveiller.",
+          "state": "État à surveiller.",
+          "province": "Province à surveiller.",
+          "countries": "Pays à surveiller. Si vous avez activé une source nationale spécifique (par exemple, le Deutscher Wetterdienst pour l'Allemagne, le Met Office pour le Royaume-Uni, Environnement Canada ou le NWS), désélectionnez ce pays ici afin d'éviter les alertes en double.",
+          "provinces": "Provinces à surveiller.",
+          "location_filters": "Filtres facultatifs séparés par des virgules pour affiner les alertes en fonction du nom du lieu.",
+          "update_interval": "À quelle fréquence vérifier la présence de nouvelles données (en minutes, de 5 à 1 440).",
+          "enabled": "Si cette source est active."
+        }
+      }
+    },
+    "error": {
+      "validation_timeout": "Délai d'attente de connexion dépassé. Veuillez réessayer.",
+      "no_source_selected": "Veuillez sélectionner une source météo.",
+      "validation_error": "Échec de la vérification de la configuration : {error}",
+      "validation_failed": "Une erreur s'est produite. Vérifiez vos paramètres et réessayez.",
+      "source_not_found": "La source météo sélectionnée est introuvable.",
+      "invalid_auth": "Clé API non valide. Veuillez vérifier et réessayer.",
+      "location_name_required": "Le nom du lieu est obligatoire.",
+      "latitude_required": "La latitude est obligatoire.",
+      "longitude_required": "La longitude est obligatoire.",
+      "invalid_latitude_format": "Format de latitude incorrect. Doit être un nombre.",
+      "invalid_longitude_format": "Format de longitude non valide. Doit être un nombre.",
+      "invalid_latitude_range": "La latitude doit être comprise entre -90 et 90.",
+      "invalid_longitude_range": "La longitude doit être comprise entre -180 et 180.",
+      "unknown": "Une erreur inattendue s'est produite."
+    },
+    "abort": {
+      "already_configured": "This source is already configured",
+      "source_not_found": "Selected weather warning source not found",
+      "invalid_state": "Configuration flow reached an invalid state. Please restart.",
+      "missing_source_id": "Configuration is missing source information. Please reconfigure.",
+      "reauth_successful": "Re-authentication was successful.",
+      "entry_not_found": "Configuration entry not found."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Configurer {source_name}",
+        "description": "Modifiez vos paramètres et sélectionnez les types de données que vous souhaitez extraire de cette source.",
+        "data": {
+          "enabled": "Activé",
+          "update_interval": "Intervalle de mise à jour (en minutes)",
+          "location_filters": "Filtres de localisation (facultatif)",
+          "regions": "Régions",
+          "local_authorities": "Collectivités locales",
+          "counties": "Comtés",
+          "country": "Pays",
+          "state": "État",
+          "province": "Province",
+          "countries": "Pays",
+          "provinces": "Provinces",
+          "api_key": "Clé API",
+          "enable_warnings": "Avertissements",
+          "enable_forecast": "Prévisions",
+          "enable_air_quality": "Qualité de l'air",
+          "forecast_latitude": "Latitude prévue",
+          "forecast_longitude": "Longitude prévue"
+        },
+        "data_description": {
+          "enabled": "Activer ou désactiver cette source.",
+          "update_interval": "À quelle fréquence vérifier la présence de nouvelles données (en minutes, de 5 à 1 440).",
+          "location_filters": "Filtres facultatifs séparés par des virgules pour affiner les alertes en fonction du nom du lieu.",
+          "regions": "Régions à surveiller.",
+          "local_authorities": "Les autorités locales devront assurer un suivi.",
+          "counties": "Comtés à surveiller.",
+          "country": "Pays à surveiller.",
+          "state": "État à surveiller.",
+          "province": "Province à surveiller.",
+          "countries": "Pays à surveiller. Si vous avez activé une source nationale spécifique (par exemple, le Deutscher Wetterdienst pour l'Allemagne, le Met Office pour le Royaume-Uni, Environnement Canada ou le NWS), désélectionnez ce pays ici afin d'éviter les alertes en double.",
+          "provinces": "Provinces à surveiller.",
+          "api_key": "Votre clé API pour ce service météo.",
+          "enable_warnings": "Afficher les alertes météo provenant de cette source.",
+          "enable_forecast": "Afficher les conditions actuelles ainsi que les prévisions horaires et quotidiennes.",
+          "enable_air_quality": "Afficher les mesures de la qualité de l'air (PM2,5, ozone, indice de qualité de l'air, etc.).",
+          "forecast_latitude": "Latitude pour les données de prévisions (de -90 à 90). La valeur par défaut correspond à votre lieu de résidence.",
+          "forecast_longitude": "Longitude pour les données de prévisions (de -180 à 180). La valeur par défaut correspond à votre lieu de résidence."
+        }
+      }
+    },
+    "error": {
+      "validation_timeout": "Délai d'attente de connexion dépassé. Veuillez réessayer.",
+      "validation_error": "Échec de la vérification de la configuration : {error}",
+      "validation_failed": "Une erreur s'est produite. Vérifiez vos paramètres et réessayez.",
+      "unknown": "Une erreur inattendue s'est produite."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "temperature": {
+        "name": "Température"
+      },
+      "apparent_temperature": {
+        "name": "Température ressentie"
+      },
+      "dew_point": {
+        "name": "Point de rosée"
+      },
+      "humidity": {
+        "name": "Humidité"
+      },
+      "pressure": {
+        "name": "Pression"
+      },
+      "surface_pressure": {
+        "name": "Pression au sol"
+      },
+      "wind_speed": {
+        "name": "Vitesse du vent"
+      },
+      "wind_direction": {
+        "name": "Direction du vent"
+      },
+      "wind_gusts": {
+        "name": "Rafales de vent"
+      },
+      "precipitation": {
+        "name": "Précipitations"
+      },
+      "rain": {
+        "name": "Pluie"
+      },
+      "showers": {
+        "name": "Averses"
+      },
+      "snowfall": {
+        "name": "Chutes de neige"
+      },
+      "cloud_cover": {
+        "name": "Couverture nuageuse"
+      },
+      "cloud_cover_low": {
+        "name": "Couverture nuageuse (faible)"
+      },
+      "cloud_cover_mid": {
+        "name": "Couverture nuageuse (moyenne)"
+      },
+      "cloud_cover_high": {
+        "name": "Couverture nuageuse (élevée)"
+      },
+      "uv_index": {
+        "name": "Indice UV"
+      },
+      "uv_index_clear_sky": {
+        "name": "Indice UV (ciel dégagé)"
+      },
+      "visibility": {
+        "name": "Visibilité"
+      },
+      "cape": {
+        "name": "CAPE"
+      },
+      "lifted_index": {
+        "name": "Indice surélevé"
+      },
+      "freezing_level_height": {
+        "name": "Hauteur du niveau de gel"
+      },
+      "soil_temperature": {
+        "name": "Température du sol"
+      },
+      "soil_moisture": {
+        "name": "Humidité du sol"
+      },
+      "european_aqi": {
+        "name": "Indice européen de qualité de l'air"
+      },
+      "us_aqi": {
+        "name": "Indice américain de qualité de l'air (AQI)"
+      },
+      "pm25": {
+        "name": "PM2,5"
+      },
+      "pm10": {
+        "name": "PM10"
+      },
+      "nitrogen_dioxide": {
+        "name": "Dioxyde d'azote"
+      },
+      "ozone": {
+        "name": "Ozone"
+      },
+      "sulphur_dioxide": {
+        "name": "Dioxyde de soufre"
+      },
+      "carbon_monoxide": {
+        "name": "Monoxyde de carbone"
+      },
+      "carbon_dioxide": {
+        "name": "Dioxyde de carbone"
+      },
+      "golden_hour_morning_start": {
+        "name": "Début de journée à l'heure dorée"
+      },
+      "golden_hour_morning_end": {
+        "name": "Fin de la « golden hour » matinale"
+      },
+      "golden_hour_evening_start": {
+        "name": "Début de soirée à l'heure dorée"
+      },
+      "golden_hour_evening_end": {
+        "name": "Fin de la soirée « Golden Hour »"
+      },
+      "blue_hour_morning_start": {
+        "name": "Début de journée à l'heure bleue"
+      },
+      "blue_hour_evening_start": {
+        "name": "Début de soirée à l'heure bleue"
+      },
+      "moon_phase": {
+        "name": "Phases de la lune",
+        "state": {
+          "new_moon": "Nouvelle lune",
+          "waxing_crescent": "Croissant de lune",
+          "first_quarter": "Premier trimestre",
+          "waxing_gibbous": "Lune gibbeuse croissante",
+          "full_moon": "Pleine lune",
+          "waning_gibbous": "Lune gibbeuse décroissante",
+          "last_quarter": "Dernier trimestre",
+          "waning_crescent": "Croissant décroissant"
+        }
+      },
+      "moonrise": {
+        "name": "Le lever de la lune"
+      },
+      "moonset": {
+        "name": "Coucher de lune"
+      },
+      "daylight_duration": {
+        "name": "Durée d'ensoleillement"
+      },
+      "active_alert": {
+        "name": "Alerte active"
+      },
+      "upcoming_alert": {
+        "name": "Alerte à venir"
+      },
+      "alert_count": {
+        "name": "Nombre d'alertes"
+      },
+      "wind_shear_0_6km": {
+        "name": "Cisaillement du vent (0–6 km)"
+      },
+      "lapse_rate_700_500": {
+        "name": "Taux de refroidissement (700–500 hPa)"
+      },
+      "lcl_height": {
+        "name": "Hauteur LCL"
+      },
+      "stability_assessment": {
+        "name": "Évaluation de la stabilité"
+      },
+      "dew_point_comfort": {
+        "name": "Confort au point de rosée"
+      },
+      "visibility_category": {
+        "name": "Catégorie de visibilité"
+      },
+      "feels_like_context": {
+        "name": "Contexte de perception"
+      },
+      "pressure_trend": {
+        "name": "Évolution de la pression"
+      },
+      "blue_hour_morning_end": {
+        "name": "Fin de matinée à l'heure bleue"
+      },
+      "blue_hour_evening_end": {
+        "name": "Fin de soirée à l'heure bleue"
+      }
+    },
+    "binary_sensor": {
+      "alert_active": {
+        "name": "Alerte active"
+      }
+    },
+    "weather": {
+      "weather": {
+        "name": "Météo"
+      }
+    }
+  },
+  "exceptions": {
+    "fetch_failed": {
+      "message": "Échec de la récupération des données depuis {source_name} : {error}"
+    }
+  }
+}
