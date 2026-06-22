@@ -15,7 +15,7 @@
 ![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)
 
 <!-- Status Badges -->
-![Version](https://img.shields.io/badge/Version-1.0.0-purple?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-1.0.1-purple?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-AGPL--3.0-blue?style=for-the-badge)
 ![Maintained](https://img.shields.io/badge/Maintained-Yes-green.svg?style=for-the-badge)
 ![Coverage](https://img.shields.io/badge/Coverage-97%25-brightgreen?style=for-the-badge)
@@ -32,7 +32,7 @@
 
 **7 weather sources · 59 entities · golden hour · moon phase · zero API keys required (except CWA Taiwan)**
 
-[Quick Start](#-quick-start) • [Features](#-features) • [Supported Sources](#-supported-sources) • [Entities](#-entities) • [Configuration](#-configuration) • [Services](#services) • [Troubleshooting](#-troubleshooting) • [Discussions](https://github.com/hiall-fyi/atmos_ce/discussions)
+[Quick Start](#quick-start) • [Features](#features) • [Supported Sources](#supported-sources) • [Entities](#entities) • [Configuration](#configuration) • [Services](#services) • [Troubleshooting](#troubleshooting) • [Discussions](https://github.com/hiall-fyi/atmos_ce/discussions)
 
 </div>
 

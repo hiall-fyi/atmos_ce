@@ -8,7 +8,7 @@ from typing import Final
 DOMAIN: Final = "atmos_ce"
 
 # Version (kept in sync with manifest.json, update both together)
-VERSION: Final = "1.0.0"
+VERSION: Final = "1.0.1"
 
 # Default User-Agent for outbound HTTP requests. Several upstream APIs
 # (NWS, Meteoalarm, Met Office) ask for an identifying UA with contact.
@@ -52,12 +52,15 @@ ICON_MAP: Final = {
     "unknown": "mdi:alert",
 }
 
-# Color mapping (hex colors for UI)
+# Color mapping (hex colors for UI). Aligned to the canonical CAP severity
+# scale in source_base.py SEVERITY_MAP — levels 1+2 are yellow (CAP minor /
+# European advisory), 3 is amber/orange (severe), 4 is red (extreme). Keep
+# these two tables in lockstep: a mismatch colours alerts at the wrong tier.
 COLOR_MAP: Final = {
-    1: "#FFFF00",  # Yellow
-    2: "#FFA500",  # Orange/Amber
-    3: "#FF0000",  # Red
-    4: "#8B0000",  # Dark Red/Extreme
+    1: "#FFFF00",  # Minor / yellow
+    2: "#FFFF00",  # Moderate / yellow (European advisory)
+    3: "#FFA500",  # Severe / amber / orange
+    4: "#FF0000",  # Extreme / red
 }
 
 # HTTP request retry settings.

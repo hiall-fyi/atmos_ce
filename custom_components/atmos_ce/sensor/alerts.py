@@ -53,6 +53,24 @@ def _alert_attributes(alert: Alert | None) -> dict[str, Any]:
     return attrs
 
 
+def _alert_list_attributes(
+    active: list[Alert], upcoming: list[Alert],
+) -> list[dict[str, Any]]:
+    """Build the ``all_alerts`` attribute: active first, then upcoming.
+
+    Each element is ``_alert_attributes(alert)`` plus an ``active`` flag.
+    Active and upcoming are already severity-first ordered by the
+    coordinator; this preserves that order and tags each element. There can
+    be multiple active alerts simultaneously — every one is listed flat
+    (no merge, no hiding).
+    """
+    return [
+        {**_alert_attributes(alert), "active": True} for alert in active
+    ] + [
+        {**_alert_attributes(alert), "active": False} for alert in upcoming
+    ]
+
+
 class _BaseAlertSensor(AtmosBaseEntity, SensorEntity):
     """Base class for alert sensors with shared initialisation logic."""
 
@@ -107,9 +125,13 @@ class ActiveAlertSensor(_BaseAlertSensor):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Return alert detail attributes."""
-        active = self._active_alerts
-        return _alert_attributes(active[0] if active else None)
+        """Return alert detail attributes plus the full alert list."""
+        data = self.coordinator.data
+        active = data.alerts.active_alerts if data else []
+        upcoming = data.alerts.upcoming_alerts if data else []
+        attrs = _alert_attributes(active[0] if active else None)
+        attrs["all_alerts"] = _alert_list_attributes(active, upcoming)
+        return attrs
 
 
 class UpcomingAlertSensor(_BaseAlertSensor):

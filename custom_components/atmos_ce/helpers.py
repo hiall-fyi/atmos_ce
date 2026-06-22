@@ -191,6 +191,22 @@ def _parse_iso_to_utc(value: str) -> datetime | None:
     return parsed.astimezone(UTC)
 
 
+def sort_alerts_by_severity(alerts: list[Alert]) -> list[Alert]:
+    """Return alerts sorted by severity (level desc) then start time (asc).
+
+    Single source of truth for severity-first ordering, shared by
+    ``get_active_alerts``, ``get_upcoming_alerts``, and the ``all_alerts``
+    sensor attribute so their orderings cannot drift. Returns a new list;
+    the input is not mutated. Unparseable start times sort last within a
+    level.
+    """
+    _min_utc = datetime.min.replace(tzinfo=UTC)
+    return sorted(
+        alerts,
+        key=lambda a: (-a.level, _parse_iso_to_utc(a.start_time) or _min_utc),
+    )
+
+
 def get_active_alerts(data: list[Alert] | None) -> list[Alert]:
     """Return currently-active alerts sorted by priority.
 
@@ -232,18 +248,13 @@ def get_active_alerts(data: list[Alert] | None) -> list[Alert]:
             continue
         if start <= now < end:
             active.append(alert)
-    # Sort by UTC-normalised datetime so mixed TZ offsets order by their
-    # real instant, not the raw ISO string. Unparseable timestamps sort
-    # to the end within the same level.
-    _min_utc = datetime.min.replace(tzinfo=UTC)
-    active.sort(
-        key=lambda a: (-a.level, _parse_iso_to_utc(a.start_time) or _min_utc),
-    )
-    return active
+    # Severity-first ordering via the shared helper (single source of
+    # truth, see sort_alerts_by_severity).
+    return sort_alerts_by_severity(active)
 
 
 def get_upcoming_alerts(data: list[Alert] | None) -> list[Alert]:
-    """Return future alerts sorted by start time.
+    """Return future alerts sorted by severity then start time.
 
     Alerts with an empty ``end_time`` are included if their start time
     is in the future (they will move to active once started).
@@ -252,7 +263,7 @@ def get_upcoming_alerts(data: list[Alert] | None) -> list[Alert]:
         data: List of Alert objects (or None).
 
     Returns:
-        Upcoming alerts sorted by start_time (asc).
+        Upcoming alerts sorted by severity (level desc) then start time (asc).
 
     """
     if not data:
@@ -271,9 +282,9 @@ def get_upcoming_alerts(data: list[Alert] | None) -> list[Alert]:
             continue
         if start > now:
             upcoming.append(alert)
-    _max_utc = datetime.max.replace(tzinfo=UTC)
-    upcoming.sort(key=lambda a: _parse_iso_to_utc(a.start_time) or _max_utc)
-    return upcoming
+    # Severity-first ordering (shared helper) so a higher-severity alert
+    # that starts later is not masked by an earlier lower-severity one.
+    return sort_alerts_by_severity(upcoming)
 
 
 # ---------------------------------------------------------------------------
