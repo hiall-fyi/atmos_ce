@@ -22,7 +22,7 @@ from homeassistant.exceptions import (
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
 
-from .const import DOMAIN
+from .const import DEFAULT_UPDATE_INTERVAL_MIN, DOMAIN
 from .coordinator import UnifiedCoordinator
 from .forecast_backend import OpenMeteoBackend
 from .source_registry import get_source_by_id
@@ -157,7 +157,9 @@ async def async_setup_entry(
         )
         return True
 
-    update_interval = coordinator_config.get("update_interval", 30)
+    update_interval = coordinator_config.get(
+        "update_interval", DEFAULT_UPDATE_INTERVAL_MIN,
+    )
     forecast_backend = OpenMeteoBackend()
 
     try:

@@ -12,13 +12,19 @@ from typing import Any, ClassVar
 
 import aiohttp
 import voluptuous as vol
+from homeassistant.helpers import selector
 from homeassistant.util.dt import utcnow
 
-from ..models import Alert, get_color_for_level, get_icon_for_alert_type
+from ..models import (
+    Alert,
+    get_color_for_level,
+    get_icon_for_alert_type,
+    resolve_severity,
+)
 from ..source_base import (
     DEFAULT_FETCH_TIMEOUT,
-    SEVERITY_MAP,
     WeatherWarningSource,
+    _as_list,
     classify_by_keywords,
     common_config_schema,
     compute_alert_id,
@@ -85,13 +91,7 @@ class NWSSource(WeatherWarningSource):
         _LOGGER.debug("Fetching alerts from NWS API")
 
         try:
-            # Build query params
-            params = {}
-
-            # Filter by state if configured
-            state = config.get("state")
-            if state:
-                params["area"] = state
+            params = self._build_area_params(config)
 
             data = await self._fetch_json(
                 session,
@@ -159,9 +159,8 @@ class NWSSource(WeatherWarningSource):
             # Use ends if available, otherwise use expires
             end_time = ends or expires
 
-            # Map severity to level
             # NWS feed sends capitalised CAP severities (Minor/Moderate/Severe/Extreme).
-            level = SEVERITY_MAP.get(severity.lower(), 1)
+            severity_name, level = resolve_severity(severity)
 
             # Classify event into alert type
             alert_type = self._classify_event(event)
@@ -182,7 +181,7 @@ class NWSSource(WeatherWarningSource):
                 alert_id=f"nws_{compute_alert_id('nws', alert_id)}",
                 source="nws",
                 alert_type=alert_type,
-                severity=severity.lower(),
+                severity=severity_name,
                 level=level,
                 start_time=onset or utcnow().isoformat(),
                 end_time=end_time,  # empty = "until further notice"
@@ -197,7 +196,7 @@ class NWSSource(WeatherWarningSource):
             _LOGGER.debug(
                 "Parsed alert: %s (%s, level %d) for %s",
                 event,
-                severity,
+                severity_name,
                 level,
                 ", ".join(locations[:2]) + ("..." if len(locations) > 2 else ""),
             )
@@ -262,13 +261,30 @@ class NWSSource(WeatherWarningSource):
         Requirements: 12.1, 12.2
 
         """
-        params: dict[str, str] = {}
-        state = config.get("state")
-        if state:
-            params["area"] = state
         return await self._validate_http_access(
-            session, self.API_URL, params=params or None, headers=self._HEADERS,
+            session, self.API_URL,
+            params=self._build_area_params(config),
+            headers=self._HEADERS,
         )
+
+    @staticmethod
+    def _build_area_params(config: dict[str, Any]) -> dict[str, str] | None:
+        """Build the ``area`` query params for a state selection.
+
+        The API takes ``area`` as a comma-separated list; a repeated
+        ``area=`` parameter would keep only the last value.
+
+        Args:
+            config: Source configuration.
+
+        Returns:
+            ``{"area": "CA,NV"}``, or ``None`` for no state selected.
+
+        """
+        states = _as_list(config.get("state"))
+        if not states:
+            return None
+        return {"area": ",".join(states)}
 
     def get_config_schema(self) -> vol.Schema:
         """Return configuration schema for this source.
@@ -280,5 +296,17 @@ class NWSSource(WeatherWarningSource):
 
         """
         return common_config_schema(extra={
-            vol.Optional("state"): vol.In(self.US_STATES),
+            # default=[] keeps the field clearable: without it an empty
+            # submit omits the key and the options merge restores the old
+            # value. _as_list first, so an entry that stored a single
+            # string before this became multi-select still validates.
+            vol.Optional("state", default=[]): vol.All(
+                _as_list,
+                selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=list(self.US_STATES),
+                        multiple=True,
+                    ),
+                ),
+            ),
         })

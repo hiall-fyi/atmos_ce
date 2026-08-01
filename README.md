@@ -15,7 +15,7 @@
 ![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)
 
 <!-- Status Badges -->
-![Version](https://img.shields.io/badge/Version-1.0.1-purple?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-1.1.0-purple?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-AGPL--3.0-blue?style=for-the-badge)
 ![Maintained](https://img.shields.io/badge/Maintained-Yes-green.svg?style=for-the-badge)
 ![Coverage](https://img.shields.io/badge/Coverage-97%25-brightgreen?style=for-the-badge)
@@ -169,7 +169,7 @@ Access via **Settings → Devices & Services → Atmos CE → Configure** (gear 
 ### Source Settings
 
 - **Enabled** — turn a source on or off without removing it
-- **Update Interval** — how often to check for new data (5–1440 minutes, default 30)
+- **Update Interval** — how often to check for new data (5–1440 minutes; default 30, or 15 for Worldwide Forecast)
 - **Location Filters** — comma-separated text to filter alerts by location name
 
 Plus source-specific settings:
@@ -249,7 +249,7 @@ logger:
 Restart Home Assistant and check **Settings → System → Logs**.
 </details>
 
-For other issues, check logs at **Settings → System → Logs** (filter by "atmos_ce") or [open an issue on GitHub](https://github.com/hiall-fyi/atmos_ce/issues).
+For issues not covered here, check **Settings → System → Logs** (filter by `atmos_ce`), search the existing [GitHub Issues](https://github.com/hiall-fyi/atmos_ce/issues), and if it's new, [open a bug report](https://github.com/hiall-fyi/atmos_ce/issues/new/choose). The form walks you through what to include (your versions, which weather source, and a debug log), which is what turns a triage round-trip into a same-day fix.
 
 ---
 
@@ -285,15 +285,7 @@ Contributions welcome! Whether it's a new warning source, bug fix, or documentat
 3. Commit your changes
 4. Open a Pull Request
 
-Feature requests and bug reports: [GitHub Issues](https://github.com/hiall-fyi/atmos_ce/issues)
-
----
-
-<div align="center">
-
-[![Star History Chart](https://api.star-history.com/svg?repos=hiall-fyi/atmos_ce&type=Date)](https://star-history.com/#hiall-fyi/atmos_ce&Date)
-
-</div>
+Hit a problem? [Open a bug report](https://github.com/hiall-fyi/atmos_ce/issues/new/choose). Want something changed, or just want to ask? [Start a Discussion](https://github.com/hiall-fyi/atmos_ce/discussions). Logs and the name of the weather source involved are what make the difference between a triage round-trip and a same-day fix.
 
 ---
 

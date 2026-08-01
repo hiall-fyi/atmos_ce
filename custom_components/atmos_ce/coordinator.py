@@ -154,7 +154,7 @@ class UnifiedCoordinator(DataUpdateCoordinator[UnifiedData]):
         if warn_failed:
             alerts = AlertData()
         else:
-            assert isinstance(warn_result, AlertData)  # noqa: S101 — refines union type for mypy
+            assert isinstance(warn_result, AlertData)  # noqa: S101 (refines union type for mypy)
             alerts = warn_result
         forecast_data: ForecastPayload | None
         aq_data: AirQualityData | None
@@ -162,7 +162,7 @@ class UnifiedCoordinator(DataUpdateCoordinator[UnifiedData]):
         if fc_failed:
             forecast_data, aq_data, astro = None, None, {}
         else:
-            assert isinstance(fc_result, tuple)  # noqa: S101 — refines union type for mypy
+            assert isinstance(fc_result, tuple)  # noqa: S101 (refines union type for mypy)
             forecast_data, aq_data, astro = fc_result
 
         # last_fetch tracks the warnings backend (it carries alert_count),

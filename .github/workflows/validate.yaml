@@ -32,3 +32,30 @@ jobs:
 
       - name: Hassfest validation
         uses: "home-assistant/actions/hassfest@master"
+
+  # Lints and type-checks the integration only. The test suite and the
+  # DEV/ tooling are not part of this repository, so they run locally and
+  # cannot be gated here.
+  lint-and-typecheck:
+    runs-on: "ubuntu-latest"
+    name: Lint & Type Check
+    steps:
+      - name: Checkout
+        uses: "actions/checkout@v4"
+
+      - name: Set up Python
+        uses: "actions/setup-python@v5"
+        with:
+          # Home Assistant 2026.6 requires >=3.14.2, and the mypy config is
+          # tuned against its type stubs.
+          python-version: "3.14"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Ruff
+        run: ruff check custom_components/
+
+      - name: Mypy
+        run: mypy custom_components/atmos_ce --ignore-missing-imports

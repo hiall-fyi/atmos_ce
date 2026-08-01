@@ -340,19 +340,52 @@
         "name": "Altura LCL"
       },
       "stability_assessment": {
-        "name": "Evaluación de la estabilidad"
+        "name": "Evaluación de la estabilidad",
+        "state": {
+          "none": "Ninguno",
+          "marginal": "Marginal",
+          "slight": "Leve",
+          "enhanced": "Elevado",
+          "moderate": "Moderado",
+          "high": "Alto",
+          "unknown": "Desconocido"
+        }
       },
       "dew_point_comfort": {
-        "name": "Confort del punto de rocío"
+        "name": "Confort del punto de rocío",
+        "state": {
+          "dry": "Seco",
+          "comfortable": "Cómodo",
+          "slightly_humid": "Ligeramente húmedo",
+          "humid": "Húmedo",
+          "oppressive": "Opresivo"
+        }
       },
       "visibility_category": {
-        "name": "Categoría de visibilidad"
+        "name": "Categoría de visibilidad",
+        "state": {
+          "clear": "Borrar",
+          "good": "Bien",
+          "moderate": "Moderado",
+          "poor": "Pobre",
+          "fog": "Niebla"
+        }
       },
       "feels_like_context": {
-        "name": "Parece que..."
+        "name": "Parece que...",
+        "state": {
+          "wind_chill": "Más frío de lo que realmente es",
+          "heat_index": "Más cálido de lo que realmente es",
+          "neutral": "Más o menos lo mismo"
+        }
       },
       "pressure_trend": {
-        "name": "Evolución de la presión"
+        "name": "Evolución de la presión",
+        "state": {
+          "rising": "En alza",
+          "steady": "Constante",
+          "falling": "Caída"
+        }
       },
       "blue_hour_morning_end": {
         "name": "La hora azul: el final de la mañana"

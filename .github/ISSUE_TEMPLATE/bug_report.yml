@@ -1,0 +1,111 @@
+name: Bug report
+description: Something in Atmos CE isn't working as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. A few quick details up front
+        save a lot of back-and-forth. Knowing which weather source is involved is
+        the most useful thing, since each one talks to a different service.
+  - type: checkboxes
+    attributes:
+      label: Before you start
+      options:
+        - label: I have searched the existing issues and discussions for this
+          required: true
+  - type: input
+    id: atmos_ce_version
+    attributes:
+      label: Atmos CE version
+      description: Copy it from the integration's device page rather than typing from memory.
+      placeholder: e.g. 1.1.0
+    validations:
+      required: true
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant version
+      placeholder: e.g. 2026.7.4
+    validations:
+      required: true
+  - type: dropdown
+    id: install_type
+    attributes:
+      label: Home Assistant installation type
+      options:
+        - HA OS
+        - Container
+        - Supervised
+        - Core
+    validations:
+      required: true
+  - type: dropdown
+    id: source
+    attributes:
+      label: Which weather source?
+      description: Pick the one this is about. If it affects several, say which in the description.
+      options:
+        - Met Office (UK)
+        - Meteoalarm (Europe)
+        - National Weather Service (USA)
+        - Environment Canada
+        - Deutscher Wetterdienst (Germany)
+        - CWA Taiwan
+        - Worldwide Forecast
+        - Affects more than one
+        - Not source-specific
+    validations:
+      required: true
+  - type: input
+    id: filters
+    attributes:
+      label: Which regions, states, counties, or provinces do you have selected?
+      description: The filters you set for this source. Leave blank if you didn't set any.
+      placeholder: e.g. London & South East England, plus Reading and Wokingham
+  - type: checkboxes
+    attributes:
+      label: Which data types are turned on for this source?
+      description: All three are on by default.
+      options:
+        - label: Warnings
+        - label: Forecasts
+        - label: Air Quality
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What actually happened?
+    validations:
+      required: true
+  - type: input
+    id: entity
+    attributes:
+      label: Which specific entity?
+      description: The entity ID, if this is about one sensor rather than the whole source.
+      placeholder: e.g. sensor.met_office_active_alert
+  - type: textarea
+    id: debug_log
+    attributes:
+      label: Debug log
+      description: >
+        Not required, but without it most issues are slow to pin down. Turning it
+        on takes a config edit and a restart, see "Enable debug logging" under
+        Troubleshooting in the README:
+        https://github.com/hiall-fyi/atmos_ce#troubleshooting
+        Paste the relevant lines (filter the log by atmos_ce).
+      render: text
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce (if you can)
+  - type: textarea
+    id: already_tried
+    attributes:
+      label: What have you already tried?
+      placeholder: e.g. reloaded the integration, re-added the source, checked the official website for active warnings

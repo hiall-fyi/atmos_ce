@@ -13,7 +13,7 @@
       },
       "configure_source": {
         "title": "Set Up {source_name}",
-        "description": "Configure your settings for {source_name}. Forecasts, air quality, and astronomical data are included automatically — you can adjust what you see later in the options.",
+        "description": "Configure your settings for {source_name}. Forecasts, air quality, and astronomical data are included automatically. You can adjust what you see later in the options.",
         "data": {
           "api_key": "API Key",
           "regions": "Regions",
@@ -346,19 +346,52 @@
         "name": "LCL Height"
       },
       "stability_assessment": {
-        "name": "Stability Assessment"
+        "name": "Stability Assessment",
+        "state": {
+          "none": "None",
+          "marginal": "Marginal",
+          "slight": "Slight",
+          "enhanced": "Enhanced",
+          "moderate": "Moderate",
+          "high": "High",
+          "unknown": "Unknown"
+        }
       },
       "dew_point_comfort": {
-        "name": "Dew Point Comfort"
+        "name": "Dew Point Comfort",
+        "state": {
+          "dry": "Dry",
+          "comfortable": "Comfortable",
+          "slightly_humid": "Slightly humid",
+          "humid": "Humid",
+          "oppressive": "Oppressive"
+        }
       },
       "visibility_category": {
-        "name": "Visibility Category"
+        "name": "Visibility Category",
+        "state": {
+          "clear": "Clear",
+          "good": "Good",
+          "moderate": "Moderate",
+          "poor": "Poor",
+          "fog": "Fog"
+        }
       },
       "feels_like_context": {
-        "name": "Feels Like Context"
+        "name": "Feels Like Context",
+        "state": {
+          "wind_chill": "Colder than actual",
+          "heat_index": "Warmer than actual",
+          "neutral": "About the same"
+        }
       },
       "pressure_trend": {
-        "name": "Pressure Trend"
+        "name": "Pressure Trend",
+        "state": {
+          "rising": "Rising",
+          "steady": "Steady",
+          "falling": "Falling"
+        }
       }
     },
     "binary_sensor": {

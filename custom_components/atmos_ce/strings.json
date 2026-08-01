@@ -13,7 +13,7 @@
       },
       "configure_source": {
         "title": "Set Up {source_name}",
-        "description": "Configure your settings for {source_name}. Forecasts, air quality, and astronomical data are included automatically — you can adjust what you see later in the options.",
+        "description": "Configure your settings for {source_name}. Forecasts, air quality, and astronomical data are included automatically. You can adjust what you see later in the options.",
         "data": {
           "api_key": "API Key",
           "regions": "Regions",
@@ -179,48 +179,132 @@
   },
   "entity": {
     "sensor": {
-      "temperature": { "name": "Temperature" },
-      "apparent_temperature": { "name": "Apparent Temperature" },
-      "dew_point": { "name": "Dew Point" },
-      "humidity": { "name": "Humidity" },
-      "pressure": { "name": "Pressure" },
-      "surface_pressure": { "name": "Surface Pressure" },
-      "wind_speed": { "name": "Wind Speed" },
-      "wind_direction": { "name": "Wind Direction" },
-      "wind_gusts": { "name": "Wind Gusts" },
-      "precipitation": { "name": "Precipitation" },
-      "rain": { "name": "Rain" },
-      "showers": { "name": "Showers" },
-      "snowfall": { "name": "Snowfall" },
-      "cloud_cover": { "name": "Cloud Cover" },
-      "cloud_cover_low": { "name": "Cloud Cover (Low)" },
-      "cloud_cover_mid": { "name": "Cloud Cover (Mid)" },
-      "cloud_cover_high": { "name": "Cloud Cover (High)" },
-      "uv_index": { "name": "UV Index" },
-      "uv_index_clear_sky": { "name": "UV Index (Clear Sky)" },
-      "visibility": { "name": "Visibility" },
-      "cape": { "name": "CAPE" },
-      "lifted_index": { "name": "Lifted Index" },
-      "freezing_level_height": { "name": "Freezing Level Height" },
-      "soil_temperature": { "name": "Soil Temperature" },
-      "soil_moisture": { "name": "Soil Moisture" },
-      "european_aqi": { "name": "European AQI" },
-      "us_aqi": { "name": "US AQI" },
-      "pm25": { "name": "PM2.5" },
-      "pm10": { "name": "PM10" },
-      "nitrogen_dioxide": { "name": "Nitrogen Dioxide" },
-      "ozone": { "name": "Ozone" },
-      "sulphur_dioxide": { "name": "Sulphur Dioxide" },
-      "carbon_monoxide": { "name": "Carbon Monoxide" },
-      "carbon_dioxide": { "name": "Carbon Dioxide" },
-      "golden_hour_morning_start": { "name": "Golden Hour Morning Start" },
-      "golden_hour_morning_end": { "name": "Golden Hour Morning End" },
-      "golden_hour_evening_start": { "name": "Golden Hour Evening Start" },
-      "golden_hour_evening_end": { "name": "Golden Hour Evening End" },
-      "blue_hour_morning_start": { "name": "Blue Hour Morning Start" },
-      "blue_hour_morning_end": { "name": "Blue Hour Morning End" },
-      "blue_hour_evening_start": { "name": "Blue Hour Evening Start" },
-      "blue_hour_evening_end": { "name": "Blue Hour Evening End" },
+      "temperature": {
+        "name": "Temperature"
+      },
+      "apparent_temperature": {
+        "name": "Apparent Temperature"
+      },
+      "dew_point": {
+        "name": "Dew Point"
+      },
+      "humidity": {
+        "name": "Humidity"
+      },
+      "pressure": {
+        "name": "Pressure"
+      },
+      "surface_pressure": {
+        "name": "Surface Pressure"
+      },
+      "wind_speed": {
+        "name": "Wind Speed"
+      },
+      "wind_direction": {
+        "name": "Wind Direction"
+      },
+      "wind_gusts": {
+        "name": "Wind Gusts"
+      },
+      "precipitation": {
+        "name": "Precipitation"
+      },
+      "rain": {
+        "name": "Rain"
+      },
+      "showers": {
+        "name": "Showers"
+      },
+      "snowfall": {
+        "name": "Snowfall"
+      },
+      "cloud_cover": {
+        "name": "Cloud Cover"
+      },
+      "cloud_cover_low": {
+        "name": "Cloud Cover (Low)"
+      },
+      "cloud_cover_mid": {
+        "name": "Cloud Cover (Mid)"
+      },
+      "cloud_cover_high": {
+        "name": "Cloud Cover (High)"
+      },
+      "uv_index": {
+        "name": "UV Index"
+      },
+      "uv_index_clear_sky": {
+        "name": "UV Index (Clear Sky)"
+      },
+      "visibility": {
+        "name": "Visibility"
+      },
+      "cape": {
+        "name": "CAPE"
+      },
+      "lifted_index": {
+        "name": "Lifted Index"
+      },
+      "freezing_level_height": {
+        "name": "Freezing Level Height"
+      },
+      "soil_temperature": {
+        "name": "Soil Temperature"
+      },
+      "soil_moisture": {
+        "name": "Soil Moisture"
+      },
+      "european_aqi": {
+        "name": "European AQI"
+      },
+      "us_aqi": {
+        "name": "US AQI"
+      },
+      "pm25": {
+        "name": "PM2.5"
+      },
+      "pm10": {
+        "name": "PM10"
+      },
+      "nitrogen_dioxide": {
+        "name": "Nitrogen Dioxide"
+      },
+      "ozone": {
+        "name": "Ozone"
+      },
+      "sulphur_dioxide": {
+        "name": "Sulphur Dioxide"
+      },
+      "carbon_monoxide": {
+        "name": "Carbon Monoxide"
+      },
+      "carbon_dioxide": {
+        "name": "Carbon Dioxide"
+      },
+      "golden_hour_morning_start": {
+        "name": "Golden Hour Morning Start"
+      },
+      "golden_hour_morning_end": {
+        "name": "Golden Hour Morning End"
+      },
+      "golden_hour_evening_start": {
+        "name": "Golden Hour Evening Start"
+      },
+      "golden_hour_evening_end": {
+        "name": "Golden Hour Evening End"
+      },
+      "blue_hour_morning_start": {
+        "name": "Blue Hour Morning Start"
+      },
+      "blue_hour_morning_end": {
+        "name": "Blue Hour Morning End"
+      },
+      "blue_hour_evening_start": {
+        "name": "Blue Hour Evening Start"
+      },
+      "blue_hour_evening_end": {
+        "name": "Blue Hour Evening End"
+      },
       "moon_phase": {
         "name": "Moon Phase",
         "state": {
@@ -234,26 +318,91 @@
           "waning_crescent": "Waning Crescent"
         }
       },
-      "moonrise": { "name": "Moonrise" },
-      "moonset": { "name": "Moonset" },
-      "daylight_duration": { "name": "Daylight Duration" },
-      "active_alert": { "name": "Active Alert" },
-      "upcoming_alert": { "name": "Upcoming Alert" },
-      "alert_count": { "name": "Alert Count" },
-      "wind_shear_0_6km": { "name": "Wind Shear (0–6 km)" },
-      "lapse_rate_700_500": { "name": "Lapse Rate (700–500 hPa)" },
-      "lcl_height": { "name": "LCL Height" },
-      "stability_assessment": { "name": "Stability Assessment" },
-      "dew_point_comfort": { "name": "Dew Point Comfort" },
-      "visibility_category": { "name": "Visibility Category" },
-      "feels_like_context": { "name": "Feels Like Context" },
-      "pressure_trend": { "name": "Pressure Trend" }
+      "moonrise": {
+        "name": "Moonrise"
+      },
+      "moonset": {
+        "name": "Moonset"
+      },
+      "daylight_duration": {
+        "name": "Daylight Duration"
+      },
+      "active_alert": {
+        "name": "Active Alert"
+      },
+      "upcoming_alert": {
+        "name": "Upcoming Alert"
+      },
+      "alert_count": {
+        "name": "Alert Count"
+      },
+      "wind_shear_0_6km": {
+        "name": "Wind Shear (0–6 km)"
+      },
+      "lapse_rate_700_500": {
+        "name": "Lapse Rate (700–500 hPa)"
+      },
+      "lcl_height": {
+        "name": "LCL Height"
+      },
+      "stability_assessment": {
+        "name": "Stability Assessment",
+        "state": {
+          "none": "None",
+          "marginal": "Marginal",
+          "slight": "Slight",
+          "enhanced": "Enhanced",
+          "moderate": "Moderate",
+          "high": "High",
+          "unknown": "Unknown"
+        }
+      },
+      "dew_point_comfort": {
+        "name": "Dew Point Comfort",
+        "state": {
+          "dry": "Dry",
+          "comfortable": "Comfortable",
+          "slightly_humid": "Slightly humid",
+          "humid": "Humid",
+          "oppressive": "Oppressive"
+        }
+      },
+      "visibility_category": {
+        "name": "Visibility Category",
+        "state": {
+          "clear": "Clear",
+          "good": "Good",
+          "moderate": "Moderate",
+          "poor": "Poor",
+          "fog": "Fog"
+        }
+      },
+      "feels_like_context": {
+        "name": "Feels Like Context",
+        "state": {
+          "wind_chill": "Colder than actual",
+          "heat_index": "Warmer than actual",
+          "neutral": "About the same"
+        }
+      },
+      "pressure_trend": {
+        "name": "Pressure Trend",
+        "state": {
+          "rising": "Rising",
+          "steady": "Steady",
+          "falling": "Falling"
+        }
+      }
     },
     "binary_sensor": {
-      "alert_active": { "name": "Alert Active" }
+      "alert_active": {
+        "name": "Alert Active"
+      }
     },
     "weather": {
-      "weather": { "name": "Weather" }
+      "weather": {
+        "name": "Weather"
+      }
     }
   },
   "exceptions": {

@@ -8,7 +8,7 @@ from typing import Final
 DOMAIN: Final = "atmos_ce"
 
 # Version (kept in sync with manifest.json, update both together)
-VERSION: Final = "1.0.1"
+VERSION: Final = "1.1.0"
 
 # Default User-Agent for outbound HTTP requests. Several upstream APIs
 # (NWS, Meteoalarm, Met Office) ask for an identifying UA with contact.
@@ -52,10 +52,37 @@ ICON_MAP: Final = {
     "unknown": "mdi:alert",
 }
 
-# Color mapping (hex colors for UI). Aligned to the canonical CAP severity
-# scale in source_base.py SEVERITY_MAP — levels 1+2 are yellow (CAP minor /
-# European advisory), 3 is amber/orange (severe), 4 is red (extreme). Keep
-# these two tables in lockstep: a mismatch colours alerts at the wrong tier.
+# Canonical severity vocabulary. Every source maps its own upstream wording
+# into this table so levels and names are comparable across sources.
+SEVERITY_MAP: Final[dict[str, int]] = {
+    # CAP canonical severity strings (NWS, DWD feed them verbatim).
+    "minor": 1,
+    "moderate": 2,
+    "severe": 3,
+    "extreme": 4,
+    # European colour codes (Met Office, Meteoalarm, EC colour-coded).
+    # Yellow is an advisory there, so it maps to 2, not to CAP's minor=1.
+    "yellow": 2,
+    "amber": 3,
+    "orange": 3,
+    "red": 4,
+    # Fallback for missing / unknown.
+    "unknown": 1,
+}
+
+# The name each level reports back as. CAP words, not colours, so each level
+# has exactly one name and round-trips through SEVERITY_MAP.
+SEVERITY_NAME_BY_LEVEL: Final[dict[int, str]] = {
+    1: "minor",
+    2: "moderate",
+    3: "severe",
+    4: "extreme",
+}
+
+# Color mapping (hex colors for UI). Aligned to the canonical SEVERITY_MAP
+# scale above. Levels 1+2 are yellow (CAP minor / European advisory), 3 is
+# amber/orange (severe), 4 is red (extreme). Keep these tables in lockstep:
+# a mismatch colours alerts at the wrong tier.
 COLOR_MAP: Final = {
     1: "#FFFF00",  # Minor / yellow
     2: "#FFFF00",  # Moderate / yellow (European advisory)
@@ -74,8 +101,17 @@ MAX_RETRY_ATTEMPTS: Final = 3
 RETRY_BASE_DELAY: Final = 2  # seconds; exponential backoff base
 MAX_RETRY_DELAY: Final = 30  # seconds, cap to prevent runaway delays
 
-# HTTP request timeout (seconds), used by config flow validation
+# Budget (seconds) for a whole config-flow validation: every retry attempt
+# plus the sleeps between them. Per-attempt timeouts live at the call sites
+# and are smaller, so a slow attempt still leaves room for a retry.
 HTTP_TIMEOUT: Final = 30
+
+# Poll cadence (minutes). Warning sources poll a national weather service;
+# forecast-only sources talk to Open-Meteo alone and can go faster.
+DEFAULT_UPDATE_INTERVAL_MIN: Final = 30
+FORECAST_ONLY_UPDATE_INTERVAL_MIN: Final = 15
+MIN_UPDATE_INTERVAL_MIN: Final = 5
+MAX_UPDATE_INTERVAL_MIN: Final = 1440
 
 # ---------------------------------------------------------------------------
 # Atmospheric stability assessment

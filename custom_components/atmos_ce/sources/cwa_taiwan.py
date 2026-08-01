@@ -17,7 +17,12 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import selector
 
-from ..models import Alert, get_color_for_level, get_icon_for_alert_type
+from ..models import (
+    Alert,
+    get_color_for_level,
+    get_icon_for_alert_type,
+    get_severity_for_level,
+)
 from ..source_base import (
     DEFAULT_FETCH_TIMEOUT,
     WeatherWarningSource,
@@ -178,7 +183,7 @@ class CWATaiwanSource(WeatherWarningSource):
                 alert_id=alert_id,
                 source="cwa_taiwan",
                 alert_type=alert_type,
-                severity=self._get_severity_name(level),
+                severity=get_severity_for_level(level),
                 level=level,
                 start_time=start_iso,
                 end_time=end_iso,
@@ -264,25 +269,6 @@ class CWATaiwanSource(WeatherWarningSource):
         return 1
 
     @staticmethod
-    def _get_severity_name(level: int) -> str:
-        """Map numeric severity level to a human-readable name.
-
-        Args:
-            level: Numeric severity level (1-4).
-
-        Returns:
-            Severity name string (advisory, watch, warning, or severe).
-
-        """
-        severity_map = {
-            1: "advisory",
-            2: "watch",
-            3: "warning",
-            4: "severe",
-        }
-        return severity_map.get(level, "advisory")
-
-    @staticmethod
     def _get_warning_code(phenomena: str) -> str:
         """Map phenomena string to CWA warning page code.
 
@@ -328,6 +314,7 @@ class CWATaiwanSource(WeatherWarningSource):
             response = await self._fetch_with_retry(
                 session, self.API_URL,
                 headers={"Authorization": api_key},
+                # Per attempt: all retries must fit inside HTTP_TIMEOUT.
                 timeout=aiohttp.ClientTimeout(total=10),
             )
             async with response:

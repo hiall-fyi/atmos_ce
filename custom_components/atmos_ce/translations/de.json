@@ -340,19 +340,52 @@
         "name": "LCL-Höhe"
       },
       "stability_assessment": {
-        "name": "Stabilitätsbewertung"
+        "name": "Stabilitätsbewertung",
+        "state": {
+          "none": "Keine",
+          "marginal": "Gering",
+          "slight": "Leicht",
+          "enhanced": "Erhöht",
+          "moderate": "Mäßig",
+          "high": "Hoch",
+          "unknown": "Unbekannt"
+        }
       },
       "dew_point_comfort": {
-        "name": "Taupunkt-Komfort"
+        "name": "Taupunkt-Komfort",
+        "state": {
+          "dry": "Trocken",
+          "comfortable": "Bequem",
+          "slightly_humid": "Etwas feucht",
+          "humid": "Feucht",
+          "oppressive": "Bedrückend"
+        }
       },
       "visibility_category": {
-        "name": "Sichtbarkeitskategorie"
+        "name": "Sichtbarkeitskategorie",
+        "state": {
+          "clear": "Löschen",
+          "good": "Gut",
+          "moderate": "Mäßig",
+          "poor": "Schlecht",
+          "fog": "Nebel"
+        }
       },
       "feels_like_context": {
-        "name": "Es fühlt sich an wie …"
+        "name": "Es fühlt sich an wie …",
+        "state": {
+          "wind_chill": "Kälter als in Wirklichkeit",
+          "heat_index": "Wärmer als tatsächlich",
+          "neutral": "Ungefähr gleich"
+        }
       },
       "pressure_trend": {
-        "name": "Druckverlauf"
+        "name": "Druckverlauf",
+        "state": {
+          "rising": "Steigend",
+          "steady": "Stetig",
+          "falling": "Fallen"
+        }
       },
       "blue_hour_morning_end": {
         "name": "Blaue Stunde – Morgenende"

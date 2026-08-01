@@ -13,7 +13,7 @@
       },
       "configure_source": {
         "title": "{source_name} instellen",
-        "description": "Stel je instellingen in voor {source_name}. Weersvoorspellingen, luchtkwaliteit en astronomische gegevens worden automatisch weergegeven — je kunt later in de opties aanpassen wat je te zien krijgt.",
+        "description": "Stel je instellingen in voor {source_name}. Weersvoorspellingen, luchtkwaliteit en astronomische gegevens worden automatisch weergegeven. Je kunt later in de opties aanpassen wat je te zien krijgt.",
         "data": {
           "api_key": "API-sleutel",
           "regions": "Regio's",
@@ -340,19 +340,52 @@
         "name": "LCL-hoogte"
       },
       "stability_assessment": {
-        "name": "Stabiliteitsbeoordeling"
+        "name": "Stabiliteitsbeoordeling",
+        "state": {
+          "none": "Geen",
+          "marginal": "Marginaal",
+          "slight": "Gering",
+          "enhanced": "Verhoogd",
+          "moderate": "Matig",
+          "high": "Hoog",
+          "unknown": "Onbekend"
+        }
       },
       "dew_point_comfort": {
-        "name": "Dauwpuntcomfort"
+        "name": "Dauwpuntcomfort",
+        "state": {
+          "dry": "Droog",
+          "comfortable": "Comfortabel",
+          "slightly_humid": "Een beetje vochtig",
+          "humid": "Vochtig",
+          "oppressive": "Beklemmend"
+        }
       },
       "visibility_category": {
-        "name": "Zichtbaarheidsklasse"
+        "name": "Zichtbaarheidsklasse",
+        "state": {
+          "clear": "Wissen",
+          "good": "Goed",
+          "moderate": "Matig",
+          "poor": "Slecht",
+          "fog": "Mist"
+        }
       },
       "feels_like_context": {
-        "name": "Het voelt alsof..."
+        "name": "Het voelt alsof...",
+        "state": {
+          "wind_chill": "Kouder dan in werkelijkheid",
+          "heat_index": "Warmer dan in werkelijkheid",
+          "neutral": "Ongeveer hetzelfde"
+        }
       },
       "pressure_trend": {
-        "name": "Drukontwikkeling"
+        "name": "Drukontwikkeling",
+        "state": {
+          "rising": "Stijgend",
+          "steady": "Stabiel",
+          "falling": "Vallen"
+        }
       },
       "blue_hour_morning_end": {
         "name": "Het blauwe uur – het einde van de ochtend"

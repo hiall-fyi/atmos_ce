@@ -13,7 +13,7 @@
       },
       "configure_source": {
         "title": "Configurar o {source_name}",
-        "description": "Configure as suas definições para o {source_name}. As previsões meteorológicas, a qualidade do ar e os dados astronómicos são incluídos automaticamente — pode ajustar o que vê mais tarde nas opções.",
+        "description": "Configure as suas definições para o {source_name}. As previsões meteorológicas, a qualidade do ar e os dados astronómicos são incluídos automaticamente. Pode ajustar o que vê mais tarde nas opções.",
         "data": {
           "api_key": "Chave API",
           "regions": "Regiões",
@@ -340,19 +340,52 @@
         "name": "Altura LCL"
       },
       "stability_assessment": {
-        "name": "Avaliação da estabilidade"
+        "name": "Avaliação da estabilidade",
+        "state": {
+          "none": "Nenhum",
+          "marginal": "Marginal",
+          "slight": "Ligeiro",
+          "enhanced": "Elevado",
+          "moderate": "Moderado",
+          "high": "Alto",
+          "unknown": "Desconhecido"
+        }
       },
       "dew_point_comfort": {
-        "name": "Conforto do ponto de orvalho"
+        "name": "Conforto do ponto de orvalho",
+        "state": {
+          "dry": "Seco",
+          "comfortable": "Confortável",
+          "slightly_humid": "Ligeiramente húmido",
+          "humid": "Húmido",
+          "oppressive": "Opressivo"
+        }
       },
       "visibility_category": {
-        "name": "Categoria de visibilidade"
+        "name": "Categoria de visibilidade",
+        "state": {
+          "clear": "Limpar",
+          "good": "Bom",
+          "moderate": "Moderado",
+          "poor": "Pobre",
+          "fog": "Nevoeiro"
+        }
       },
       "feels_like_context": {
-        "name": "Parece que o contexto"
+        "name": "Parece que o contexto",
+        "state": {
+          "wind_chill": "Mais frio do que na realidade",
+          "heat_index": "Mais quente do que na realidade",
+          "neutral": "Mais ou menos o mesmo"
+        }
       },
       "pressure_trend": {
-        "name": "Tendência da pressão"
+        "name": "Tendência da pressão",
+        "state": {
+          "rising": "A subir",
+          "steady": "Constante",
+          "falling": "A cair"
+        }
       },
       "blue_hour_morning_end": {
         "name": "Hora Azul: O Fim da Manhã"

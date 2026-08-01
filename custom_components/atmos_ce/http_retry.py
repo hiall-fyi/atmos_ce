@@ -56,7 +56,7 @@ def _jittered_backoff(attempt: int) -> float:
     """
     upper = min(MAX_RETRY_DELAY, float(RETRY_BASE_DELAY ** attempt))
     lower = float(min(RETRY_BASE_DELAY, upper))
-    return random.uniform(lower, upper)  # noqa: S311 — jitter, not crypto
+    return random.uniform(lower, upper)  # noqa: S311 (jitter, not crypto)
 
 
 def _parse_retry_after_header(header: str | None) -> float | None:
@@ -104,7 +104,7 @@ def _clamp_retry_delay(seconds: float) -> float:
     return max(_RETRY_AFTER_MIN_S, min(_RETRY_AFTER_MAX_S, seconds))
 
 
-async def async_fetch_with_retry(  # noqa: C901 — linear retry control flow with status + auth + jitter branches
+async def async_fetch_with_retry(  # noqa: C901 (linear retry control flow with status + auth + jitter branches)
     session: aiohttp.ClientSession,
     url: str,
     *,

@@ -16,6 +16,11 @@ import aiohttp
 import voluptuous as vol
 from homeassistant.helpers import config_validation as cv
 
+from ..const import (
+    FORECAST_ONLY_UPDATE_INTERVAL_MIN,
+    MAX_UPDATE_INTERVAL_MIN,
+    MIN_UPDATE_INTERVAL_MIN,
+)
 from ..forecast_backend import OpenMeteoBackend
 from ..models import Alert
 from ..source_base import WeatherWarningSource
@@ -104,8 +109,10 @@ class WorldwideForecastSource(WeatherWarningSource):
         """
         return vol.Schema({
             vol.Optional("enabled", default=True): cv.boolean,
-            vol.Optional("update_interval", default=15): vol.All(
+            vol.Optional(
+                "update_interval", default=FORECAST_ONLY_UPDATE_INTERVAL_MIN,
+            ): vol.All(
                 vol.Coerce(int),
-                vol.Range(min=5, max=1440),
+                vol.Range(min=MIN_UPDATE_INTERVAL_MIN, max=MAX_UPDATE_INTERVAL_MIN),
             ),
         })

@@ -61,7 +61,7 @@ def _alert_list_attributes(
     Each element is ``_alert_attributes(alert)`` plus an ``active`` flag.
     Active and upcoming are already severity-first ordered by the
     coordinator; this preserves that order and tags each element. There can
-    be multiple active alerts simultaneously — every one is listed flat
+    be multiple active alerts simultaneously, and every one is listed flat
     (no merge, no hiding).
     """
     return [

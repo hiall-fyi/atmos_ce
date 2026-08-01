@@ -129,8 +129,8 @@ def _safe_get(
     data: dict[str, Any],
     key: str,
     index: int,
-    default: Any = None,  # noqa: ANN401 — generic default
-) -> Any:  # noqa: ANN401 — generic return
+    default: Any = None,  # noqa: ANN401 (generic default)
+) -> Any:  # noqa: ANN401 (generic return)
     """Safely get a value from an Open-Meteo array field.
 
     Args:
@@ -620,6 +620,7 @@ class OpenMeteoBackend:
             }
             response = await async_fetch_with_retry(
                 session, self.API_URL, params=params,
+                # Per attempt: all retries must fit inside HTTP_TIMEOUT.
                 timeout=aiohttp.ClientTimeout(total=10),
                 source_label="Open-Meteo", logger=_LOGGER,
             )

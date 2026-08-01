@@ -15,10 +15,14 @@ import aiohttp
 import voluptuous as vol
 from homeassistant.util.dt import utcnow
 
-from ..models import Alert, get_color_for_level, get_icon_for_alert_type
+from ..models import (
+    Alert,
+    get_color_for_level,
+    get_icon_for_alert_type,
+    resolve_severity,
+)
 from ..source_base import (
     DEFAULT_FETCH_TIMEOUT,
-    SEVERITY_MAP,
     WeatherWarningSource,
     classify_by_keywords,
     common_config_schema,
@@ -193,8 +197,7 @@ class DWDSource(WeatherWarningSource):
             if colour_info is not None:
                 severity_name, level = colour_info
             else:
-                level = SEVERITY_MAP.get(severity.lower(), 1)
-                severity_name = severity.lower() or "unknown"
+                severity_name, level = resolve_severity(severity)
 
             # Classify event into alert type using EC_GROUP
             alert_type = self._classify_event(ec_group, event)

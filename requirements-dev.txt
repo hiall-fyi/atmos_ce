@@ -1,0 +1,18 @@
+# Development dependencies. Pinned so a failure means the code changed, not a
+# dependency. Runtime deps live in manifest.json.
+
+# Needed by CI (lint + type check). The mypy config is tuned against Home
+# Assistant's type stubs, so the framework has to be installed even though
+# only custom_components/ is checked.
+homeassistant==2026.6.0
+xmltodict==1.0.4
+ruff==0.15.12
+mypy==2.0.0
+
+# Local only. The test suite is not part of this repository, so CI cannot run
+# it; these are here so a fresh clone can set up the same local environment.
+pytest==9.0.3
+pytest-asyncio==1.3.0
+pytest-homeassistant-custom-component==0.13.336
+hypothesis==6.152.4
+aioresponses==0.7.8

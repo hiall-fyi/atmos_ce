@@ -340,19 +340,52 @@
         "name": "Altezza LCL"
       },
       "stability_assessment": {
-        "name": "Valutazione della stabilità"
+        "name": "Valutazione della stabilità",
+        "state": {
+          "none": "Nessuno",
+          "marginal": "Marginale",
+          "slight": "Lieve",
+          "enhanced": "Elevato",
+          "moderate": "Moderato",
+          "high": "Alto",
+          "unknown": "Sconosciuto"
+        }
       },
       "dew_point_comfort": {
-        "name": "Comfort del punto di rugiada"
+        "name": "Comfort del punto di rugiada",
+        "state": {
+          "dry": "Asciutto",
+          "comfortable": "Confortevole",
+          "slightly_humid": "Leggermente umido",
+          "humid": "Umido",
+          "oppressive": "Opprimente"
+        }
       },
       "visibility_category": {
-        "name": "Categoria di visibilità"
+        "name": "Categoria di visibilità",
+        "state": {
+          "clear": "Cancella",
+          "good": "Bene",
+          "moderate": "Moderato",
+          "poor": "Povero",
+          "fog": "Nebbia"
+        }
       },
       "feels_like_context": {
-        "name": "Sembra che..."
+        "name": "Sembra che...",
+        "state": {
+          "wind_chill": "Più freddo di quanto non sia in realtà",
+          "heat_index": "Più caldo di quanto sia in realtà",
+          "neutral": "Più o meno lo stesso"
+        }
       },
       "pressure_trend": {
-        "name": "Andamento della pressione"
+        "name": "Andamento della pressione",
+        "state": {
+          "rising": "In aumento",
+          "steady": "Stabile",
+          "falling": "Caduta"
+        }
       },
       "blue_hour_morning_end": {
         "name": "L'ora blu - Fine del mattino"

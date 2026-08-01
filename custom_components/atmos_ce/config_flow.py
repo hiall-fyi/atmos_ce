@@ -523,7 +523,12 @@ class AtmosCEOptionsFlow(config_entries.OptionsFlowWithReload):
                         "source_name": source.source_name,
                     },
                 )
-            return self.async_create_entry(title="", data=user_input)
+            # Merge, don't replace: an Optional field submitted empty is
+            # absent from user_input, and setup reads options in preference
+            # to data, so replacing would drop the key entirely.
+            return self.async_create_entry(
+                title="", data={**existing_config, **user_input},
+            )
 
         return self.async_show_form(
             step_id="init",

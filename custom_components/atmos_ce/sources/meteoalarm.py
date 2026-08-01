@@ -16,7 +16,12 @@ import aiohttp
 import voluptuous as vol
 from homeassistant.helpers import selector
 
-from ..models import Alert, get_color_for_level, get_icon_for_alert_type
+from ..models import (
+    Alert,
+    get_color_for_level,
+    get_icon_for_alert_type,
+    resolve_severity,
+)
 from ..source_base import (
     DEFAULT_FETCH_TIMEOUT,
     SEVERITY_MAP,
@@ -246,9 +251,12 @@ class MeteoalarmSource(WeatherWarningSource):
                 level = SEVERITY_MAP[colour]
                 break
         else:
-            # No colour in the title, use CAP severity as provided.
-            severity_name = severity.lower() or severity_name
-            level = SEVERITY_MAP.get(severity_name, level)
+            # No colour in the title, so use the CAP severity. Keep the
+            # yellow default when it is absent or unrecognised: Meteoalarm
+            # only publishes advisory-and-above.
+            resolved_name, resolved_level = resolve_severity(severity)
+            if resolved_name != "unknown":
+                severity_name, level = resolved_name, resolved_level
 
         # Parse locations
         locations = [area_desc] if area_desc else []

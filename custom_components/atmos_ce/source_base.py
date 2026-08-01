@@ -13,6 +13,12 @@ import xmltodict
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import selector
 
+from .const import (
+    DEFAULT_UPDATE_INTERVAL_MIN,
+    MAX_UPDATE_INTERVAL_MIN,
+    MIN_UPDATE_INTERVAL_MIN,
+)
+from .const import SEVERITY_MAP as SEVERITY_MAP  # noqa: PLC0414 (re-export for source plugins)
 from .helpers import filter_by_location
 from .http_retry import DEFAULT_FETCH_TIMEOUT, async_fetch_with_retry
 from .models import Alert
@@ -20,32 +26,8 @@ from .models import Alert
 _LOGGER = logging.getLogger(__name__)
 
 
-# Canonical CAP-aligned severity mapping. Every source MUST emit
-# ``alert.level ∈ {1,2,3,4}`` using this table as the authoritative
-# colour-/name-to-level reference:
-#
-#   Minor / yellow  -> 1
-#   Moderate / yellow -> 2 (European colour convention)
-#   Severe / amber / orange -> 3
-#   Extreme / red -> 4
-#
-# European weather services use colour codes where yellow is an
-# advisory (level 2), so "yellow" maps to 2 here, NOT 1 like the CAP
-# "Minor" severity. Met Office and Meteoalarm readers rely on this.
-SEVERITY_MAP: dict[str, int] = {
-    # CAP canonical severity strings (NWS, DWD feed them verbatim).
-    "minor": 1,
-    "moderate": 2,
-    "severe": 3,
-    "extreme": 4,
-    # European colour codes (Met Office, Meteoalarm, EC colour-coded).
-    "yellow": 2,
-    "amber": 3,
-    "orange": 3,
-    "red": 4,
-    # Fallback for missing / unknown.
-    "unknown": 1,
-}
+# Sources map upstream wording to a level via SEVERITY_MAP, and name it via
+# models.get_severity_for_level.
 
 
 def compute_alert_id(source_id: str, upstream_id: str) -> str:
@@ -105,7 +87,7 @@ def classify_by_keywords(
     return default
 
 
-def _as_list(value: Any) -> list[Any]:  # noqa: ANN401 — accepts xmltodict's dict|list|str|None
+def _as_list(value: Any) -> list[Any]:  # noqa: ANN401 (accepts xmltodict's dict|list|str|None)
     """Coerce a value to a list, following the xmltodict/Atom convention.
 
     xmltodict and several feed parsers return a single dict when exactly
@@ -181,10 +163,16 @@ def common_config_schema(
     """
     base: dict[vol.Marker, object] = {
         vol.Optional("enabled", default=True): cv.boolean,
-        vol.Optional("update_interval", default=30): vol.All(
-            vol.Coerce(int), vol.Range(min=5, max=1440),
+        vol.Optional(
+            "update_interval", default=DEFAULT_UPDATE_INTERVAL_MIN,
+        ): vol.All(
+            vol.Coerce(int),
+            vol.Range(min=MIN_UPDATE_INTERVAL_MIN, max=MAX_UPDATE_INTERVAL_MIN),
         ),
-        vol.Optional("location_filters"): selector.TextSelector(
+        # default="" keeps the field clearable: the options flow merges over
+        # the existing config, so a key absent from an empty submit would
+        # keep its old value.
+        vol.Optional("location_filters", default=""): selector.TextSelector(
             selector.TextSelectorConfig(multiline=False),
         ),
     }
@@ -467,6 +455,7 @@ class WeatherWarningSource(ABC):
                 url,
                 params=params,
                 headers=headers,
+                # Per attempt: all retries must fit inside HTTP_TIMEOUT.
                 timeout=aiohttp.ClientTimeout(total=10),
             )
             async with response:

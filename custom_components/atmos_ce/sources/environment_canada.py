@@ -18,10 +18,14 @@ import voluptuous as vol
 from homeassistant.helpers import selector
 from homeassistant.util.dt import utcnow
 
-from ..models import Alert, get_color_for_level, get_icon_for_alert_type
+from ..models import (
+    Alert,
+    get_color_for_level,
+    get_icon_for_alert_type,
+    resolve_severity,
+)
 from ..source_base import (
     DEFAULT_FETCH_TIMEOUT,
-    SEVERITY_MAP,
     WeatherWarningSource,
     _as_list,
     async_parse_xml,
@@ -357,8 +361,7 @@ class EnvironmentCanadaSource(WeatherWarningSource):
             if "yellow" in alert_name_lower or "jaune" in alert_name_lower:
                 return "yellow", 2
 
-        severity_name = severity.lower() if severity else "unknown"
-        level = SEVERITY_MAP.get(severity_name, 1)
+        severity_name, level = resolve_severity(severity)
 
         # Urgency escalation: "Immediate" bumps borderline alerts up one
         # tier; "Expected" / "Future" / "Past" are left unchanged.
