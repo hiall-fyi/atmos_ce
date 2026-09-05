@@ -426,8 +426,10 @@ class WeatherWarningSource(ABC):
             unsupported_str = ", ".join(invalid)
             return (
                 False,
-                f"Unsupported {plural}: {unsupported_str}. "
-                f"Must be one of: {supported_str}",
+                (
+                    f"Unsupported {plural}: {unsupported_str}. "
+                    f"Must be one of: {supported_str}"
+                ),
             )
         return True, None
 

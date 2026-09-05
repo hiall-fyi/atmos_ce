@@ -8,7 +8,7 @@
 homeassistant==2026.9.0
 xmltodict==1.0.4
 ruff==0.16.5
-mypy==2.0.0
+mypy==2.3.1
 
 # The test suite is not part of this repository either; these are here so a
 # fresh clone can set up the same local environment.
@@ -16,4 +16,4 @@ pytest==9.1.1
 pytest-asyncio==1.4.0
 pytest-homeassistant-custom-component==0.13.363
 hypothesis==6.167.1
-aioresponses==0.7.8
+aioresponses==0.7.9
