@@ -7,7 +7,7 @@
 # because the mypy settings are tuned against its type stubs.
 homeassistant==2026.9.0
 xmltodict==1.0.4
-ruff==0.15.12
+ruff==0.16.5
 mypy==2.0.0
 
 # The test suite is not part of this repository either; these are here so a
