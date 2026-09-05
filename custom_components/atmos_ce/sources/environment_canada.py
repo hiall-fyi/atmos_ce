@@ -3,8 +3,6 @@
 This module implements the Environment Canada weather warning source plugin,
 which fetches alerts from the Environment Canada CAP XML feeds hosted on
 the Meteorological Service of Canada Datamart.
-
-Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6
 """
 from __future__ import annotations
 
@@ -44,8 +42,6 @@ class EnvironmentCanadaSource(WeatherWarningSource):
     Datamart CAP XML feeds. It discovers office codes from a directory
     listing, then fetches individual CAP files concurrently with a
     semaphore to avoid overwhelming the server.
-
-    Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6
     """
 
     BASE_URL = "https://dd.weather.gc.ca/today/alerts/cap"
@@ -88,18 +84,9 @@ class EnvironmentCanadaSource(WeatherWarningSource):
         Discovers office codes from the daily directory listing, then
         fetches all CAP files concurrently (bounded by a semaphore) to
         avoid an N+1 sequential HTTP request storm.
-
-        Args:
-            session: aiohttp client session.
-            config: Source configuration containing provinces list.
-
-        Returns:
-            List of Alert objects from all discovered CAP files.
-
         """
         provinces = _as_list(config.get("provinces", ["ON"]))
 
-        # Get today's date for directory path
         today = utcnow().strftime("%Y%m%d")
         base_url = f"{self.BASE_URL}/{today}/"
 
@@ -195,23 +182,13 @@ class EnvironmentCanadaSource(WeatherWarningSource):
         return self._apply_location_filter(all_alerts, config)
 
     def _parse_alert(self, data: dict, provinces: list[str]) -> Alert | None:
-        """Parse a single Environment Canada CAP alert.
-
-        Args:
-            data: Parsed CAP XML dictionary from xmltodict.
-            provinces: List of province codes to filter by.
-
-        Returns:
-            Alert object or None if parsing fails or province doesn't match.
-
-        """
+        """Parse a single Environment Canada CAP alert."""
         try:
             alert_data = data.get("alert", {})
             info = alert_data.get("info", {})
 
-            # Handle multiple info blocks (bilingual alerts)
+            # Bilingual alerts carry multiple info blocks; prefer the English one.
             if isinstance(info, list):
-                # Prefer English info block
                 for i in info:
                     if i.get("language", "").startswith("en"):
                         info = i
@@ -219,7 +196,6 @@ class EnvironmentCanadaSource(WeatherWarningSource):
                 else:
                     info = info[0]
 
-            # Extract basic fields
             alert_id = alert_data.get("identifier", "")
             sent = alert_data.get("sent", "")
             event = info.get("event", "Unknown")
@@ -233,16 +209,13 @@ class EnvironmentCanadaSource(WeatherWarningSource):
             expires = info.get("expires", "")
             web = info.get("web", "https://weather.gc.ca/")
 
-            # Extract area information
             area = info.get("area", {})
             if isinstance(area, list):
                 area = area[0] if area else {}
 
             area_desc = area.get("areaDesc", "Unknown")
 
-            # Check if alert is for selected provinces
             if provinces:
-                # Check if any selected province is mentioned in area description
                 province_match = False
                 for prov_code in provinces:
                     prov_name = self.SUPPORTED_PROVINCES.get(prov_code, "")
@@ -253,26 +226,17 @@ class EnvironmentCanadaSource(WeatherWarningSource):
                 if not province_match:
                     return None
 
-            # Extract alert type and color from parameters
             alert_name_param = None
-
             parameters = _as_list(info.get("parameter", []))
-
             for param in parameters:
                 value_name = param.get("valueName", "")
                 if "Alert_Name" in value_name:
                     alert_name_param = param.get("value", "")
 
-            # Classify event type
             alert_type = self._classify_event(event)
-
-            # Map severity to level and extract color
             severity_name, level = self._map_severity(severity, urgency, alert_name_param)
-
-            # Parse locations
             locations = [area_desc] if area_desc else []
 
-            # Combine description and instruction
             full_description = description
             if instruction:
                 full_description = f"{description}\n\n{instruction}"
@@ -284,7 +248,10 @@ class EnvironmentCanadaSource(WeatherWarningSource):
                 severity=severity_name,
                 level=level,
                 start_time=onset,
-                end_time=expires or onset,
+                # Empty = "until further notice" (see helpers.get_active_alerts).
+                # Falling back to onset made end_time == start_time, a
+                # zero-length window that could never register as active.
+                end_time=expires,
                 locations=tuple(locations),
                 summary=headline,
                 description=full_description,
@@ -322,15 +289,7 @@ class EnvironmentCanadaSource(WeatherWarningSource):
 
     @classmethod
     def _classify_event(cls, event: str) -> str:
-        """Classify an Environment Canada event string into a normalised alert type.
-
-        Args:
-            event: Event string from the CAP XML (e.g. "Rainfall", "Blizzard").
-
-        Returns:
-            Normalised alert type string (e.g. "rain", "wind", "unknown").
-
-        """
+        """Classify an Environment Canada event string into a normalised alert type."""
         return classify_by_keywords(event, cls._CLASSIFY_TABLE)
 
     @staticmethod
@@ -342,15 +301,6 @@ class EnvironmentCanadaSource(WeatherWarningSource):
         CAP severity. ``urgency == "Immediate"`` escalates a borderline
         level-2 or level-3 result by one tier, capped at 4, mirroring
         how NOAA and Meteoalarm clients surface imminent alerts.
-
-        Args:
-            severity: CAP severity string (e.g. "Extreme", "Severe").
-            urgency: CAP urgency string ("Immediate" triggers escalation).
-            alert_name: Optional Alert_Name parameter with colour info.
-
-        Returns:
-            Tuple of (severity_name, numeric_level).
-
         """
         if alert_name:
             alert_name_lower = alert_name.lower()
@@ -376,16 +326,7 @@ class EnvironmentCanadaSource(WeatherWarningSource):
         session: aiohttp.ClientSession,
         config: dict[str, Any],
     ) -> tuple[bool, str | None]:
-        """Validate configuration by testing feed access.
-
-        Args:
-            session: aiohttp client session.
-            config: Configuration to validate (must contain provinces list).
-
-        Returns:
-            Tuple of (success, error_message).
-
-        """
+        """Validate configuration by testing feed access."""
         valid, error = self._validate_list_selection(
             config, "provinces", self.SUPPORTED_PROVINCES,
             singular="province", plural="provinces",
@@ -398,12 +339,7 @@ class EnvironmentCanadaSource(WeatherWarningSource):
         return await self._validate_http_access(session, url)
 
     def get_config_schema(self) -> vol.Schema:
-        """Return configuration schema for Environment Canada.
-
-        Returns:
-            Voluptuous schema for Environment Canada configuration.
-
-        """
+        """Return configuration schema for Environment Canada."""
         province_options = dict(self.SUPPORTED_PROVINCES)
 
         return common_config_schema(extra={

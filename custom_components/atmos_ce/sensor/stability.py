@@ -13,6 +13,7 @@ from homeassistant.components.sensor import (
 )
 
 from ..const import (
+    ATTRIBUTION_OPEN_METEO,
     STABILITY_TIER_ICONS,
     STABILITY_TIER_LABELS,
     STABILITY_TIER_OPTIONS,
@@ -97,7 +98,6 @@ class DerivedStabilitySensor(ForecastCurrentEntity, SensorEntity):
     """Represent a derived atmospheric stability sensor."""
 
     entity_description: DerivedStabilitySensorDescription
-    _attribution_template = "Derived from {source} data"
 
     @property
     def native_value(self) -> float | int | None:
@@ -133,9 +133,7 @@ class StabilityAssessmentSensor(ForecastCurrentMixin, AtmosBaseEntity, SensorEnt
         """Initialize the StabilityAssessmentSensor."""
         super().__init__(coordinator, entry_id)
         self._attr_unique_id = f"{entry_id}_stability_assessment"
-        self._attr_attribution = (
-            f"Derived from {coordinator.source.source_name} data"
-        )
+        self._attr_attribution = ATTRIBUTION_OPEN_METEO
 
     def _get_assessment(self) -> StabilityAssessment | None:
         """Compute the stability assessment from current conditions."""
@@ -170,10 +168,15 @@ class StabilityAssessmentSensor(ForecastCurrentMixin, AtmosBaseEntity, SensorEnt
 
     @property
     def icon(self) -> str:
-        """Return dynamic icon based on the current stability tier."""
+        """Return dynamic icon based on the current stability tier.
+
+        ``tier_label`` (not ``tier``) decides the insufficient-data case:
+        both a genuinely calm result and a missing-CAPE-and-LI result use
+        ``StabilityTier.NONE``, and only ``tier_label`` distinguishes them.
+        """
         assessment = self._get_assessment()
-        if assessment is None:
-            return "mdi:weather-sunny"
+        if assessment is None or assessment.tier_label == "unknown":
+            return "mdi:help-circle-outline"
         return STABILITY_TIER_ICONS.get(
             assessment.tier, "mdi:weather-sunny",
         )

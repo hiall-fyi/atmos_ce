@@ -1,9 +1,6 @@
 """Met Office weather warning source (UK).
 
-This module implements the Met Office weather warning source plugin,
-which fetches alerts from the Met Office RSS feed.
-
-Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6
+Fetches alerts from the Met Office RSS feed.
 """
 from __future__ import annotations
 
@@ -18,13 +15,13 @@ import voluptuous as vol
 from homeassistant.helpers import selector
 from homeassistant.util.dt import utcnow
 
-from ..models import Alert, get_color_for_level, get_icon_for_alert_type
+from ..models import Alert, get_color_for_level, get_icon_for_alert_type, resolve_severity
 from ..source_base import (
     DEFAULT_FETCH_TIMEOUT,
-    SEVERITY_MAP,
     WeatherWarningSource,
     _as_list,
     async_parse_xml,
+    classify_by_keywords,
     common_config_schema,
     compute_alert_id,
 )
@@ -35,12 +32,8 @@ _LOGGER = logging.getLogger(__name__)
 class MetOfficeSource(WeatherWarningSource):
     """Met Office weather warnings (UK).
 
-    This source fetches weather warnings from the Met Office RSS feed.
-    It supports yellow, amber, and red severity levels for various
-    weather types including rain, wind, snow, ice, fog, thunderstorms,
-    heat, and cold.
-
-    Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6
+    Supports yellow, amber, and red severity levels for rain, wind, snow,
+    ice, fog, thunderstorms, heat, and cold.
     """
 
     RSS_URL = "https://www.metoffice.gov.uk/public/data/PWSCache/WarningsRSS/Region/UK"
@@ -117,21 +110,20 @@ class MetOfficeSource(WeatherWarningSource):
         "Belfast", "Derry", "Lisburn", "Newry",
     ]
 
-    # Alert type mapping, specific types first, then standard
-    ALERT_TYPE_MAP: ClassVar[dict[str, str]] = {
-        "flood": "flood",
-        "flooding": "flood",
-        "coastal": "coastal",
-        "rain": "rain",
-        "wind": "wind",
-        "snow": "snow",
-        "ice": "ice",
-        "fog": "fog",
-        "thunderstorm": "thunderstorm",
-        "thunder": "thunderstorm",
-        "heat": "heat",
-        "cold": "cold",
-    }
+    # Walked in order, first match wins. flood/flooding and
+    # thunderstorm/thunder share a row each since they're the same type.
+    _CLASSIFY_TABLE: ClassVar[tuple[tuple[str, tuple[str, ...]], ...]] = (
+        ("flood", ("flood", "flooding")),
+        ("coastal", ("coastal",)),
+        ("rain", ("rain",)),
+        ("wind", ("wind",)),
+        ("snow", ("snow",)),
+        ("ice", ("ice",)),
+        ("fog", ("fog",)),
+        ("thunderstorm", ("thunderstorm", "thunder")),
+        ("heat", ("heat",)),
+        ("cold", ("cold",)),
+    )
 
     @property
     def source_id(self) -> str:
@@ -148,21 +140,7 @@ class MetOfficeSource(WeatherWarningSource):
         session: aiohttp.ClientSession,
         config: dict[str, Any],
     ) -> list[Alert]:
-        """Fetch alerts from Met Office RSS feed.
-
-        Args:
-            session: aiohttp client session
-            config: Source configuration
-
-        Returns:
-            List of Alert objects
-
-        Raises:
-            aiohttp.ClientError: If HTTP request fails
-
-        Requirements: 14.1, 14.3, 14.4, 14.5
-
-        """
+        """Fetch alerts from the Met Office RSS feed."""
         _LOGGER.debug("Fetching alerts from Met Office RSS feed")
 
         try:
@@ -191,12 +169,10 @@ class MetOfficeSource(WeatherWarningSource):
                 )
                 raise
 
-            # Handle empty or invalid XML
             if data is None or not isinstance(data, dict):
                 _LOGGER.warning("Empty or invalid XML from Met Office")
                 return []
 
-            # Get items, handling None values
             rss = data.get("rss", {})
             if not isinstance(rss, dict):
                 _LOGGER.warning("Invalid RSS structure from Met Office")
@@ -214,7 +190,6 @@ class MetOfficeSource(WeatherWarningSource):
 
             _LOGGER.debug("Found %d items in RSS feed", len(items))
 
-            # Parse each item into an Alert
             alerts = []
             for item in items:
                 alert = self._parse_alert(item)
@@ -223,25 +198,22 @@ class MetOfficeSource(WeatherWarningSource):
 
             _LOGGER.debug("Parsed %d alerts from Met Office", len(alerts))
 
-            # Build location filters
+            # local_authorities match against locations; location_filters is
+            # free-text, either a single string or a list.
             location_filters: list[str] = []
-
-            # Add local authority filters (match against locations list)
             local_authorities = config.get("local_authorities", [])
             if local_authorities:
                 location_filters.extend(local_authorities)
 
-            # Add custom location filters
             custom_filters = config.get("location_filters", [])
             if isinstance(custom_filters, str):
                 location_filters.append(custom_filters)
             elif custom_filters:
                 location_filters.extend(custom_filters)
 
-            # Apply filtering
             filtered_alerts = alerts
 
-            # Filter by regions (match against summary/title)
+            # Regions match against the alert summary/title, not a structured field.
             regions = config.get("regions", [])
             if regions:
                 filtered_alerts = [
@@ -272,17 +244,7 @@ class MetOfficeSource(WeatherWarningSource):
             raise
 
     def _parse_alert(self, item: dict) -> Alert | None:
-        """Parse a single Met Office alert from RSS item.
-
-        Args:
-            item: RSS item dictionary from xmltodict
-
-        Returns:
-            Alert object or None if parsing fails
-
-        Requirements: 14.3, 14.4, 14.5, 14.6
-
-        """
+        """Parse a single Met Office alert from an RSS item."""
         try:
             title = item.get("title", "")
             description = item.get("description", "")
@@ -293,28 +255,17 @@ class MetOfficeSource(WeatherWarningSource):
                 _LOGGER.warning("Skipping alert with empty title")
                 return None
 
-            # Extract severity and alert type from title
-            # Format: "Yellow warning of rain affecting South West England"
-            severity = self._extract_severity(title)
+            # Title format: "Yellow warning of rain affecting South West England"
+            severity_name, level = resolve_severity(self._extract_severity(title))
             alert_type = self._extract_alert_type(title)
-
-            # Extract locations from description (more detailed than title)
             locations = self._extract_locations(title, description)
-
-            # Parse times from description
             start_time, end_time = self._extract_times(description, pub_date)
 
-            # Get severity level
-            # Met Office yellow/amber/red align to the shared CAP table:
-            # yellow=2 (advisory), amber=3 (warning), red=4 (extreme).
-            level = SEVERITY_MAP.get(severity, 1)
-
-            # Create alert
             alert = Alert(
                 alert_id=f"met_office_{compute_alert_id('met_office', title + pub_date)}",
                 source="met_office",
                 alert_type=alert_type,
-                severity=severity,
+                severity=severity_name,
                 level=level,
                 start_time=start_time,
                 end_time=end_time,
@@ -329,7 +280,7 @@ class MetOfficeSource(WeatherWarningSource):
             _LOGGER.debug(
                 "Parsed alert: %s (%s, level %d) for %s",
                 alert_type,
-                severity,
+                severity_name,
                 level,
                 ", ".join(locations[:2]) + ("..." if len(locations) > 2 else ""),
             )
@@ -345,74 +296,35 @@ class MetOfficeSource(WeatherWarningSource):
             return None
 
     def _extract_severity(self, title: str) -> str:
-        """Extract severity from title.
+        """Extract the colour word from the title, or "" if it has none.
 
-        Args:
-            title: Alert title
-
-        Returns:
-            Severity string (yellow, amber, red)
-
-        Requirements: 14.3, 14.6
-
+        "" (not "yellow") on no match: an unparseable title is unclassified,
+        not a real moderate/yellow warning the feed never actually sent.
+        The caller resolves "" to "unknown"/1 via resolve_severity.
         """
         title_lower = title.lower()
-
-        # Check in order of severity (highest first)
-        for severity in ["red", "amber", "yellow"]:
+        for severity in ("red", "amber", "yellow"):
             if severity in title_lower:
                 return severity
-
-        # Default to yellow if not found
-        return "yellow"
+        return ""
 
     def _extract_alert_type(self, title: str) -> str:
-        """Extract alert type from title.
-
-        Args:
-            title: Alert title
-
-        Returns:
-            Alert type string
-
-        Requirements: 14.4
-
-        """
-        title_lower = title.lower()
-
-        # Check for each alert type
-        for keyword, alert_type in self.ALERT_TYPE_MAP.items():
-            if keyword in title_lower:
-                return alert_type
-
-        # Default to unknown
-        return "unknown"
+        """Extract alert type from title."""
+        return classify_by_keywords(title, self._CLASSIFY_TABLE)
 
     def _extract_locations(self, title: str, description: str = "") -> list[str]:
         """Extract locations from title and description.
 
-        Args:
-            title: Alert title
-            description: Alert description (contains detailed locations)
-
-        Returns:
-            List of location strings
-
-        Requirements: 14.5
-
+        Real format: "Yellow warning of rain affecting South West England",
+        with detailed locations in the description after the colon.
         """
-        # Real format: "Yellow warning of rain affecting South West England"
-        # Detailed locations are in description after the colon
-
         # First try to extract from description (more detailed)
         if description and ":" in description:
             # Format: "Yellow warning of rain affecting South West England:
             # Bournemouth Christchurch and Poole, Cornwall, Devon, Dorset..."
             parts = description.split(":", 1)
             if len(parts) == 2:
-                location_part = parts[1].split(" valid from ")[0]  # Remove time part
-
-                # Split by commas
+                location_part = parts[1].split(" valid from ")[0]  # strip the trailing validity period
                 locations = [loc.strip() for loc in location_part.split(",")]
                 locations = [loc for loc in locations if loc]
 
@@ -420,7 +332,6 @@ class MetOfficeSource(WeatherWarningSource):
                     return locations
 
         # Fallback: extract region from title
-        # Format: "Yellow warning of rain affecting South West England"
         if " affecting " in title:
             region = title.split(" affecting ", 1)[1]
             return [region.strip()]
@@ -437,17 +348,8 @@ class MetOfficeSource(WeatherWarningSource):
     def _extract_times(self, description: str, pub_date: str) -> tuple[str, str]:
         """Extract start and end times from description.
 
-        Args:
-            description: Alert description
-            pub_date: Publication date string
-
-        Returns:
-            Tuple of (start_time, end_time) in ISO 8601 format
-
-        Requirements: 14.5
-
+        Real format: "valid from 0500 Thu 05 Feb to 2100 Fri 06 Feb".
         """
-        # Real format: "valid from 0500 Thu 05 Feb to 2100 Fri 06 Feb"
         pattern = r"valid from (\d{4} \w+ \d{1,2} \w+) to (\d{4} \w+ \d{1,2} \w+)"
         match = re.search(pattern, description, re.IGNORECASE)
 
@@ -456,18 +358,13 @@ class MetOfficeSource(WeatherWarningSource):
                 start_str = match.group(1)  # "0500 Thu 05 Feb"
                 end_str = match.group(2)    # "2100 Fri 06 Feb"
 
-                # Parse the time strings
-                # Format: "0500 Thu 05 Feb" -> need to add year
-
-                # Get current year from pub_date
                 try:
                     pub_dt = parsedate_to_datetime(pub_date)
                     year = pub_dt.year
                 except Exception:
                     year = utcnow().year
 
-                # Parse start time
-                # "0500 Thu 05 Feb" -> "Thu, 05 Feb 2026 05:00:00 GMT"
+                # "0500 Thu 05 Feb" + year 2026 -> "2026-02-05T05:00:00+00:00"
                 start_time_str = self._parse_met_office_time(start_str, year)
                 end_time_str = self._parse_met_office_time(end_str, year)
 
@@ -491,18 +388,8 @@ class MetOfficeSource(WeatherWarningSource):
             return utcnow().isoformat(), ""
 
     def _parse_met_office_time(self, time_str: str, year: int) -> str | None:
-        """Parse Met Office time format to ISO 8601.
-
-        Args:
-            time_str: Time string like "0500 Thu 05 Feb"
-            year: Year to use
-
-        Returns:
-            ISO 8601 datetime string or None if parsing fails
-
-        """
+        """Parse a "0500 Thu 05 Feb" time string to ISO 8601."""
         try:
-            # "0500 Thu 05 Feb" -> extract components
             parts = time_str.split()
             if len(parts) < 4:
                 return None
@@ -511,11 +398,9 @@ class MetOfficeSource(WeatherWarningSource):
             day = parts[2]        # "05"
             month = parts[3]      # "Feb"
 
-            # Parse time
             hour = int(time_part[:2])
             minute = int(time_part[2:])
 
-            # Parse month
             month_map = {
                 "Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4,
                 "May": 5, "Jun": 6, "Jul": 7, "Aug": 8,
@@ -523,7 +408,6 @@ class MetOfficeSource(WeatherWarningSource):
             }
             month_num = month_map.get(month, 1)
 
-            # Create datetime
             dt = datetime(year, month_num, int(day), hour, minute, tzinfo=UTC)
             return dt.isoformat()
 
@@ -536,29 +420,11 @@ class MetOfficeSource(WeatherWarningSource):
         session: aiohttp.ClientSession,
         config: dict[str, Any],
     ) -> tuple[bool, str | None]:
-        """Validate configuration by testing API access.
-
-        Args:
-            session: aiohttp client session
-            config: Configuration to validate
-
-        Returns:
-            Tuple of (success, error_message)
-
-        Requirements: 12.1, 12.2
-
-        """
+        """Validate configuration by testing API access."""
         return await self._validate_http_access(session, self.RSS_URL)
 
     def get_config_schema(self) -> vol.Schema:
-        """Return configuration schema for this source.
-
-        Returns:
-            Voluptuous schema for configuration
-
-        Requirements: 11.3, 12.1
-
-        """
+        """Return configuration schema for this source."""
         return common_config_schema(extra={
             vol.Optional("regions", default=[]): selector.SelectSelector(
                 selector.SelectSelectorConfig(

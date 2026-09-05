@@ -396,7 +396,11 @@
     },
     "binary_sensor": {
       "alert_active": {
-        "name": "Alert Active"
+        "name": "Alert Active",
+        "state": {
+          "on": "Alert",
+          "off": "No alert"
+        }
       }
     },
     "weather": {

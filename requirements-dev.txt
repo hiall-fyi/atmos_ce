@@ -5,7 +5,7 @@
 # live in pyproject.toml, which is not part of this repository, so a CI runner
 # would silently check against tool defaults instead. Home Assistant is here
 # because the mypy settings are tuned against its type stubs.
-homeassistant==2026.6.0
+homeassistant==2026.9.0
 xmltodict==1.0.4
 ruff==0.15.12
 mypy==2.0.0
@@ -13,7 +13,7 @@ mypy==2.0.0
 # The test suite is not part of this repository either; these are here so a
 # fresh clone can set up the same local environment.
 pytest==9.0.3
-pytest-asyncio==1.3.0
-pytest-homeassistant-custom-component==0.13.336
+pytest-asyncio==1.4.0
+pytest-homeassistant-custom-component==0.13.363
 hypothesis==6.152.4
 aioresponses==0.7.8

@@ -23,6 +23,7 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .const import ATTRIBUTION_OPEN_METEO
 from .coordinator import UnifiedCoordinator
 from .entity import AtmosBaseEntity
 
@@ -112,9 +113,7 @@ class AtmosWeatherEntity(AtmosBaseEntity, WeatherEntity):
         """Initialize the AtmosWeatherEntity."""
         super().__init__(coordinator, entry_id)
         self._attr_unique_id = f"{entry_id}_weather"
-        self._attr_attribution = (
-            f"Data provided by {coordinator.source.source_name}"
-        )
+        self._attr_attribution = ATTRIBUTION_OPEN_METEO
 
     @property
     def available(self) -> bool:

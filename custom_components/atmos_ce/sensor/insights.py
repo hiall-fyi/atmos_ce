@@ -14,6 +14,7 @@ from homeassistant.components.sensor import (
 from homeassistant.util.dt import utcnow
 
 from ..const import (
+    ATTRIBUTION_OPEN_METEO,
     DEW_POINT_COMFORT_OPTIONS,
     FEELS_LIKE_CONTEXT_OPTIONS,
     PRESSURE_TREND_OPTIONS,
@@ -92,7 +93,6 @@ class InsightSensor(ForecastCurrentEntity, SensorEntity):
     """Represent a derived weather insight sensor (enum type)."""
 
     entity_description: InsightSensorDescription
-    _attribution_template = "Derived from {source} data"
 
     def __init__(
         self,
@@ -148,9 +148,7 @@ class PressureTrendSensor(ForecastCurrentMixin, AtmosBaseEntity, SensorEntity):
         # rather than leaving an orphan task that might write after
         # StorageManager.async_flush has already snapshotted the state.
         self._pending_tasks: set[asyncio.Task[None]] = set()
-        self._attr_attribution = (
-            f"Derived from {coordinator.source.source_name} data"
-        )
+        self._attr_attribution = ATTRIBUTION_OPEN_METEO
 
     def _schedule_save(self) -> None:
         """Fire-and-track an async pressure save."""
@@ -192,8 +190,13 @@ class PressureTrendSensor(ForecastCurrentMixin, AtmosBaseEntity, SensorEntity):
             return
 
         now = utcnow()
+        config = self.coordinator.config
+        # forecast_latitude/longitude are always resolved onto coordinator.config
+        # by UnifiedCoordinator._resolve_config; 0.0 here never actually fires.
         await self._storage.save_pressure_reading(
             self._source_id, now, pressure,
+            config.get("forecast_latitude", 0.0),
+            config.get("forecast_longitude", 0.0),
         )
         self._pressure_3h_ago = await self._storage.load_pressure_3h_ago(
             self._source_id, now,

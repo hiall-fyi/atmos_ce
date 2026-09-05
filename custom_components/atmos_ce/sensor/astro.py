@@ -105,7 +105,7 @@ class AstroSensor(AtmosDescriptionEntity, SensorEntity):
     """Represent an astronomical sensor (sun/moon data)."""
 
     entity_description: AstroSensorDescription
-    _attribution_template = "Calculated from NOAA/Meeus algorithms"
+    _attr_attribution = "Calculated from NOAA/Meeus algorithms"
 
     @property
     def available(self) -> bool:

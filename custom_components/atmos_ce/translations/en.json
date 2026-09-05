@@ -117,9 +117,9 @@
       "unknown": "An unexpected error occurred."
     },
     "abort": {
-      "already_configured": "This source is already configured",
-      "source_not_found": "Selected weather warning source not found",
-      "invalid_state": "Configuration flow reached an invalid state. Please restart.",
+      "already_configured": "This source is already set up.",
+      "source_not_found": "Selected weather source not found.",
+      "invalid_state": "Something went wrong. Please restart the setup.",
       "missing_source_id": "Configuration is missing source information. Please reconfigure.",
       "reauth_successful": "Re-authentication was successful.",
       "entry_not_found": "Configuration entry not found."
@@ -396,7 +396,11 @@
     },
     "binary_sensor": {
       "alert_active": {
-        "name": "Alert Active"
+        "name": "Alert Active",
+        "state": {
+          "on": "Alert",
+          "off": "No alert"
+        }
       }
     },
     "weather": {

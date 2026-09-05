@@ -1,0 +1,15 @@
+version: 2
+updates:
+  # requirements-dev.txt — local dev/test venv only, never shipped.
+  # manifest.json's own runtime requirement isn't a format Dependabot
+  # parses; that side is covered instead by pre-ship-check-ha-integration
+  # Gate 8-ter (pip-audit scoped to manifest.json at ship time).
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

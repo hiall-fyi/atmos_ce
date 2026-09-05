@@ -2,8 +2,6 @@
 
 This module implements the DWD weather warning source plugin,
 which fetches alerts from the DWD WFS API.
-
-Requirements: 19.1, 19.2, 19.3, 19.4, 19.5, 19.6
 """
 from __future__ import annotations
 
@@ -54,8 +52,6 @@ class DWDSource(WeatherWarningSource):
     This source fetches weather warnings from the DWD WFS API.
     It supports Minor, Moderate, Severe, and Extreme severity levels
     for various weather types.
-
-    Requirements: 19.1, 19.2, 19.3, 19.4, 19.5, 19.6
     """
 
     API_URL = "https://maps.dwd.de/geoserver/dwd/ows"
@@ -75,25 +71,10 @@ class DWDSource(WeatherWarningSource):
         session: aiohttp.ClientSession,
         config: dict[str, Any],
     ) -> list[Alert]:
-        """Fetch alerts from DWD WFS API.
-
-        Args:
-            session: aiohttp client session
-            config: Source configuration
-
-        Returns:
-            List of Alert objects
-
-        Raises:
-            aiohttp.ClientError: If HTTP request fails
-
-        Requirements: 19.1, 19.3, 19.4, 19.5
-
-        """
+        """Fetch alerts from DWD WFS API."""
         _LOGGER.debug("Fetching alerts from DWD WFS API")
 
         try:
-            # Build WFS query params
             params = {
                 "service": "WFS",
                 "version": "2.0.0",
@@ -143,7 +124,6 @@ class DWDSource(WeatherWarningSource):
 
             _LOGGER.debug("Found %d features in DWD response", len(features))
 
-            # Parse each feature into an Alert
             alerts = []
             for feature in features:
                 alert = self._parse_alert(feature)
@@ -159,21 +139,10 @@ class DWDSource(WeatherWarningSource):
             raise
 
     def _parse_alert(self, feature: dict) -> Alert | None:
-        """Parse a single DWD alert from WFS feature.
-
-        Args:
-            feature: Feature dictionary from DWD WFS API
-
-        Returns:
-            Alert object or None if parsing fails
-
-        Requirements: 19.3, 19.4, 19.5, 19.6
-
-        """
+        """Parse a single DWD alert from a WFS feature."""
         try:
             properties = feature.get("properties", {})
 
-            # Extract required fields
             identifier = properties.get("IDENTIFIER", "")
             event = properties.get("EVENT", "Unknown")
             severity = properties.get("SEVERITY", "Unknown")
@@ -199,11 +168,9 @@ class DWDSource(WeatherWarningSource):
             else:
                 severity_name, level = resolve_severity(severity)
 
-            # Classify event into alert type using EC_GROUP
             alert_type = self._classify_event(ec_group, event)
 
-            # Parse locations from AREADESC and NAME
-            # AREADESC is short name, NAME is full name
+            # AREADESC is the short name, NAME the full name; keep both when they differ.
             locations = []
             if area_desc:
                 locations.append(area_desc)
@@ -212,12 +179,10 @@ class DWDSource(WeatherWarningSource):
             if not locations:
                 locations = ["Unknown"]
 
-            # Build full description
             full_description = description
             if instruction:
                 full_description += f"\n\n{instruction}"
 
-            # Create alert
             alert = Alert(
                 alert_id=f"dwd_{compute_alert_id('dwd', identifier)}",
                 source="dwd",
@@ -286,16 +251,6 @@ class DWDSource(WeatherWarningSource):
 
         Prefers the EC_GROUP field (more reliable); falls back to the
         free-text EVENT field when EC_GROUP yields no match.
-
-        Args:
-            ec_group: DWD EC_GROUP field (e.g., "SNOWFALL", "FROST")
-            event: DWD EVENT field (fallback)
-
-        Returns:
-            Alert type string
-
-        Requirements: 19.4
-
         """
         # Sentinel lets an EC_GROUP miss fall through to the EVENT table.
         group_match = classify_by_keywords(
@@ -310,18 +265,7 @@ class DWDSource(WeatherWarningSource):
         session: aiohttp.ClientSession,
         config: dict[str, Any],
     ) -> tuple[bool, str | None]:
-        """Validate configuration by testing API access.
-
-        Args:
-            session: aiohttp client session
-            config: Configuration to validate
-
-        Returns:
-            Tuple of (success, error_message)
-
-        Requirements: 12.1, 12.2
-
-        """
+        """Validate configuration by testing API access."""
         params = {
             "service": "WFS",
             "version": "2.0.0",
@@ -335,12 +279,5 @@ class DWDSource(WeatherWarningSource):
         )
 
     def get_config_schema(self) -> vol.Schema:
-        """Return configuration schema for this source.
-
-        Returns:
-            Voluptuous schema for configuration
-
-        Requirements: 11.3, 12.1
-
-        """
+        """Return configuration schema for this source."""
         return common_config_schema()

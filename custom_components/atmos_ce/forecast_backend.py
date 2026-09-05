@@ -329,7 +329,7 @@ class OpenMeteoBackend:
 
         """
         current = data.get("current", {})
-        weather_code = current.get("weather_code", 0)
+        weather_code = current.get("weather_code")
         # is_day absent → derive from local time of the current block so
         # a clear-sky code at 03:00 does not render as "sunny".
         is_day = current.get("is_day")
@@ -405,7 +405,7 @@ class OpenMeteoBackend:
         times = times[:hours]
         forecasts = []
         for i, time in enumerate(times):
-            weather_code = _safe_get(hourly, "weather_code", i, 0)
+            weather_code = _safe_get(hourly, "weather_code", i)
             # Open-Meteo returns is_day as 1/0 when requested in `hourly`.
             # When the field is absent (older responses / API variant)
             # fall back to the hour component of the local time so an
@@ -471,7 +471,7 @@ class OpenMeteoBackend:
         times = times[:days]
         forecasts = []
         for i, time in enumerate(times):
-            weather_code = _safe_get(daily, "weather_code", i, 0)
+            weather_code = _safe_get(daily, "weather_code", i)
             condition = self._map_weather_code(weather_code, is_day=1)
             forecasts.append({
                 "datetime": _normalise_iso_to_utc(time, utc_offset) or time,
@@ -494,21 +494,19 @@ class OpenMeteoBackend:
         return forecasts
 
     def _map_weather_code(
-        self, weather_code: int, is_day: int | None = 1,
+        self, weather_code: int | None, is_day: int | None = 1,
     ) -> str:
         """Map Open-Meteo weather code to Home Assistant condition.
 
-        Args:
-            weather_code: WMO weather code.
-            is_day: ``1`` if daytime, ``0`` if nighttime, ``None`` if
-                unknown. When ``None`` the clear-sky code is rendered
-                as ``"clear-night"`` rather than ``"sunny"``, the
-                night icon looks sensible in daylight, but a bright-sun
-                icon at 3 a.m. is an obvious defect.
+        ``weather_code=None`` (missing from the response) falls through to
+        ``"exceptional"`` same as an unrecognised code, rather than
+        defaulting to 0 ("sunny") — a meaningful condition a missing field
+        did not actually report.
 
-        Returns:
-            Home Assistant condition name.
-
+        ``is_day``: ``1`` if daytime, ``0`` if nighttime, ``None`` if
+        unknown. When ``None`` the clear-sky code renders as
+        ``"clear-night"`` rather than ``"sunny"`` — a bright-sun icon at
+        3 a.m. is an obvious defect.
         """
         condition = self.WEATHER_CODE_MAP.get(weather_code, "exceptional")
         if condition == "sunny" and is_day != 1:

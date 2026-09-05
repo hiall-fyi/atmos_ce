@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .const import ATTRIBUTION_OPEN_METEO
 from .helpers import build_device_info
 
 if TYPE_CHECKING:
@@ -43,18 +44,14 @@ class AtmosBaseEntity(CoordinatorEntity["UnifiedCoordinator"]):
 class AtmosDescriptionEntity(AtmosBaseEntity):
     """Base for description-driven Atmos CE sensors.
 
-    Derives unique_id from ``entry_id`` + the description key and sets a
-    source-derived attribution. Subclasses set ``entity_description`` via
-    the constructor and add only their ``native_value`` /
+    Derives unique_id from ``entry_id`` + the description key. Subclasses
+    set ``entity_description`` via the constructor, override
+    ``_attr_attribution`` if their data isn't Open-Meteo-derived (see
+    ``AstroSensor``), and add only their ``native_value`` /
     ``extra_state_attributes`` logic.
-
-    The attribution template is overridable via the ``_attribution_template``
-    class attribute (``"{source}"`` is substituted with the source name)
-    so forecast sensors read "Data provided by X" while derived sensors
-    read "Derived from X data" without re-implementing __init__.
     """
 
-    _attribution_template = "Data provided by {source}"
+    _attr_attribution = ATTRIBUTION_OPEN_METEO
 
     def __init__(
         self,
@@ -66,9 +63,6 @@ class AtmosDescriptionEntity(AtmosBaseEntity):
         super().__init__(coordinator, entry_id)
         self.entity_description = description
         self._attr_unique_id = f"{entry_id}_{description.key}"
-        self._attr_attribution = self._attribution_template.format(
-            source=coordinator.source.source_name,
-        )
 
 
 class ForecastCurrentMixin(CoordinatorEntity["UnifiedCoordinator"]):

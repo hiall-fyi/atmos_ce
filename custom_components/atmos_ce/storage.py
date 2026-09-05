@@ -50,7 +50,8 @@ class StorageManager:
     Storage structure (single file at .storage/atmos_ce):
         {
             "last_fetch": { "<source_id>": {...} },
-            "pressure_history": { "<source_id>": [...] }
+            "pressure_history": { "<source_id>": [...] },
+            "pressure_history_location": { "<source_id>": [lat, lon] }
         }
     """
 
@@ -77,6 +78,7 @@ class StorageManager:
             self._data = {
                 "last_fetch": stored.get("last_fetch", {}),
                 "pressure_history": stored.get("pressure_history", {}),
+                "pressure_history_location": stored.get("pressure_history_location", {}),
             }
         return self._data
 
@@ -111,7 +113,7 @@ class StorageManager:
         async with self._lock:
             data = await self._async_get_data()
             removed = False
-            for bucket in ("last_fetch", "pressure_history"):
+            for bucket in ("last_fetch", "pressure_history", "pressure_history_location"):
                 if source_id in data.get(bucket, {}):
                     del data[bucket][source_id]
                     removed = True
@@ -200,19 +202,29 @@ class StorageManager:
         source_id: str,
         timestamp: datetime,
         pressure_hpa: float,
+        latitude: float | None = None,
+        longitude: float | None = None,
     ) -> None:
         """Save a pressure reading and prune old entries.
 
-        Args:
-            source_id: Source identifier.
-            timestamp: Reading timestamp.
-            pressure_hpa: Pressure in hPa.
-
+        When ``latitude``/``longitude`` are given and differ from the
+        source's last-known location (rounded to 2dp, ~1km), the existing
+        history is cleared first: a forecast-location change edited via
+        the Options flow would otherwise blend readings from two different
+        places into one trend classification for up to
+        ``PRESSURE_HISTORY_RETENTION_H`` hours.
         """
         async with self._lock:
             data = await self._async_get_data()
             history = data.setdefault("pressure_history", {})
             source_history: list[dict[str, Any]] = history.setdefault(source_id, [])
+
+            if latitude is not None and longitude is not None:
+                locations = data.setdefault("pressure_history_location", {})
+                current_location = [round(latitude, 2), round(longitude, 2)]
+                if locations.get(source_id) != current_location:
+                    source_history.clear()
+                    locations[source_id] = current_location
 
             # Round timestamp to nearest minute
             ts_key = timestamp.replace(second=0, microsecond=0).isoformat()

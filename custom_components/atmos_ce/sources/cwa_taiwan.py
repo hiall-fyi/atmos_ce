@@ -3,8 +3,6 @@
 This module implements the CWA (Central Weather Administration) Taiwan
 weather warning source plugin, which fetches alerts from the CWA Open Data
 API (W-C0033-001).
-
-Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6
 """
 from __future__ import annotations
 
@@ -50,8 +48,6 @@ class CWATaiwanSource(WeatherWarningSource):
     It supports typhoon, heavy rain, strong wind, cold, heat,
     thunderstorm, and fog alert types with county-level filtering
     for all 22 Taiwan counties and cities.
-
-    Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6
     """
 
     API_URL = "https://opendata.cwa.gov.tw/api/v1/rest/datastore/W-C0033-001"
@@ -71,16 +67,7 @@ class CWATaiwanSource(WeatherWarningSource):
         session: aiohttp.ClientSession,
         config: dict[str, Any],
     ) -> list[Alert]:
-        """Fetch alerts from CWA Taiwan API.
-
-        Args:
-            session: aiohttp client session.
-            config: Source configuration containing api_key and optional counties.
-
-        Returns:
-            List of Alert objects parsed from the API response.
-
-        """
+        """Fetch alerts from CWA Taiwan API."""
         api_key = config.get("api_key")
         if not api_key:
             # Auth failure (not a transient error) so HA prompts for reauth.
@@ -120,7 +107,6 @@ class CWATaiwanSource(WeatherWarningSource):
                 location_name = location.get("locationName", "")
                 hazards = location.get("hazardConditions", {}).get("hazards", [])
 
-                # Filter by counties if configured
                 if counties and location_name not in counties:
                     continue
 
@@ -143,16 +129,7 @@ class CWATaiwanSource(WeatherWarningSource):
         return self._apply_location_filter(alerts, config)
 
     def _parse_alert(self, hazard: dict, location_name: str) -> Alert | None:
-        """Parse a single CWA Taiwan alert from hazard data.
-
-        Args:
-            hazard: Hazard dictionary from the API response.
-            location_name: Name of the location (county/city).
-
-        Returns:
-            Alert object or None if parsing fails.
-
-        """
+        """Parse a single CWA Taiwan alert from hazard data."""
         try:
             info = hazard.get("info", {})
             valid_time = hazard.get("validTime", {})
@@ -165,17 +142,11 @@ class CWATaiwanSource(WeatherWarningSource):
             if not phenomena or not start_time or not end_time:
                 return None
 
-            # Classify alert type
             alert_type = self._classify_phenomena(phenomena)
-
-            # Map significance to severity level
             # CWA uses: 特報 (advisory), 警報 (warning), 嚴重特報 (severe warning)
             level = self._map_significance_to_level(significance, phenomena)
-
-            # Generate alert ID
             alert_id = f"cwa_taiwan_{compute_alert_id('cwa_taiwan', f'{location_name}|{phenomena}|{start_time}')}"
 
-            # Format times to ISO 8601
             start_iso = start_time.replace(" ", "T") + "+08:00"
             end_iso = end_time.replace(" ", "T") + "+08:00"
 
@@ -216,31 +187,15 @@ class CWATaiwanSource(WeatherWarningSource):
 
     @classmethod
     def _classify_phenomena(cls, phenomena: str) -> str:
-        """Classify CWA phenomena string into a normalised alert type.
-
-        Args:
-            phenomena: Chinese phenomena string from the API (e.g. "颱風", "豪雨").
-
-        Returns:
-            Normalised alert type string (e.g. "wind", "rain", "unknown").
-
-        """
+        """Classify CWA phenomena string into a normalised alert type."""
         return classify_by_keywords(phenomena, cls._CLASSIFY_TABLE)
 
     @staticmethod
     def _map_significance_to_level(significance: str, phenomena: str) -> int:
-        """Map CWA significance and phenomena to a numeric severity level.
+        """Map CWA significance and phenomena to a numeric severity level (1-4).
 
         CWA uses 特報 (advisory), 警報 (warning), and 嚴重特報 (severe warning).
         Typhoons and rain warnings have specialised mappings.
-
-        Args:
-            significance: Chinese significance string (e.g. "特報", "警報").
-            phenomena: Chinese phenomena string for context-dependent mapping.
-
-        Returns:
-            Numeric severity level from 1 (lowest) to 4 (highest).
-
         """
         # For typhoons, use special mapping
         if "颱風" in phenomena:
@@ -270,15 +225,7 @@ class CWATaiwanSource(WeatherWarningSource):
 
     @staticmethod
     def _get_warning_code(phenomena: str) -> str:
-        """Map phenomena string to CWA warning page code.
-
-        Args:
-            phenomena: Chinese phenomena string.
-
-        Returns:
-            Two-digit warning code used in the CWA website URL.
-
-        """
+        """Map phenomena string to the two-digit CWA warning-page code."""
         if "颱風" in phenomena:
             return "21"
         if "豪雨" in phenomena or "大雨" in phenomena:
@@ -296,16 +243,7 @@ class CWATaiwanSource(WeatherWarningSource):
         session: aiohttp.ClientSession,
         config: dict[str, Any],
     ) -> tuple[bool, str | None]:
-        """Validate configuration by testing API access.
-
-        Args:
-            session: aiohttp client session.
-            config: Configuration to validate (must contain api_key).
-
-        Returns:
-            Tuple of (success, error_message).
-
-        """
+        """Validate configuration by testing API access."""
         api_key = config.get("api_key")
         if not api_key:
             return False, "API key is required"
@@ -332,12 +270,7 @@ class CWATaiwanSource(WeatherWarningSource):
             return False, f"Unexpected error: {err}"
 
     def get_config_schema(self) -> vol.Schema:
-        """Return configuration schema for this source.
-
-        Returns:
-            Voluptuous schema for CWA Taiwan configuration.
-
-        """
+        """Return configuration schema for this source."""
         return common_config_schema(extra={
             vol.Required("api_key"): cv.string,
             vol.Optional("counties", default=[]): selector.SelectSelector(

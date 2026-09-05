@@ -2,12 +2,46 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+
+## [2.0.0] - 2026-09-05
+
+**If you have an automation or template matching the literal text `"None"` on the Active Alert or Upcoming Alert sensors**, switch it to check for the `unknown` state instead. With no alert, both sensors now report the standard Unknown state rather than the word "None".
+
+### Bug fixes
+
+- **Fixed: a warning with no expiry never showed as active.** Environment Canada and Meteoalarm warnings that don't carry an expiry time fell back to the warning's own start time or last-updated time instead of leaving it open-ended, so the active-warning check was never true. However serious the warning, it never appeared in the active or upcoming sensors, or turned on the alert-active binary sensor.
+
+- **Fixed: several forecast, air quality, and stability sensors credited the wrong data source.** Temperature, humidity, air quality, and the derived stability/comfort sensors said "Data provided by" whichever warning service you'd picked, even though that data comes from Open-Meteo. They now credit Open-Meteo, with the licence attribution it requires.
+
+- **Fixed: a Meteoalarm warning with no severity field showed one tier lower than intended.** A title with no colour word and no CAP severity field defaulted to Minor instead of the intended Yellow, silently understating the warning.
+
+- **Fixed: a Met Office warning whose title didn't match the expected format showed as a real Yellow warning.** It now shows as unknown, matching how every other source already handles a warning it can't classify.
+
+- **Fixed: changing a source's forecast location could blend two places' air pressure into one trend.** Editing the forecast coordinates in Options kept comparing against pressure readings from the old location for up to 4 hours, so the pressure trend sensor could show rising or falling based on the difference between two locations rather than a real change at either one.
+
+- **Fixed: a missing weather code showed as "Sunny."** When Open-Meteo's response was missing the weather code for the current, hourly, or daily forecast, conditions defaulted to sunny or clear-night instead of showing as unrecognised.
+
+- **Fixed: diagnostics kept reporting success after a login failure.** Once a source's API key was rejected, the diagnostics page kept showing the last successful fetch indefinitely rather than reflecting that fetches were failing.
+
+- **Fixed: three config-flow messages stayed in English for German, Spanish, French, Italian, Dutch, and Portuguese.** "This source is already set up," "source not found," and the generic setup error were never translated; they now read in your language like the rest of the setup flow.
+
+### Improvements
+
+- **Worldwide Forecast's device now uses the name you gave it.** The location name entered during setup was collected but never used; the device showed the generic "Worldwide Forecast" regardless. It now reads, for example, "Home Forecast."
+
+- **Active/Upcoming Alert sensors no longer show the English word "None" in every language.** They now show the standard translated "Unknown" state, matching how every other sensor with no current value behaves.
+
+- **The Stability Assessment icon no longer shows a sunny icon when the reading is actually unknown.** Missing CAPE and Lifted Index data now shows a question-mark icon instead of the calm-weather one.
+
+- **Alert Active no longer reads "Unsafe" for a routine minor advisory.** The binary sensor now shows "Alert" / "No alert" rather than borrowing the safety device class's "Unsafe" / "Safe" wording, which overstated a low-severity warning.
 
 
 ## [1.1.0] - 2026-08-01
 
-**If you have an automation matching CWA Taiwan warnings on the `severity` attribute** (`advisory`, `watch`, `warning`), switch it to the `level` number or to the new wording. Every source now reports the same four names, so `level` is the reliable thing to compare on. No other source is affected.
+**If you have an automation matching CWA Taiwan warnings on the `severity` attribute** (`advisory`, `watch`, `warning`), switch it to the `level` number or to the new wording. Severity names still vary by source (some use minor/moderate/severe/extreme, others use yellow/amber/red), but `level` now means the same thing everywhere, so it's the reliable thing to compare on. No other source is affected.
 
 ### Bug fixes
 
@@ -15,7 +49,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - **Location filters could not be removed once set.** Clearing the location filter box and saving left the old filter in place, so you carried on seeing only the alerts it matched. Emptying the box now removes the filter.
 
-- **Warning severity did not mean the same thing across sources.** CWA Taiwan labelled its warnings advisory, watch, warning, and severe, while every other source used the yellow/amber/red or minor/moderate/severe/extreme wording. Worse, "severe" from Taiwan sat at the top tier where the same word means one tier lower everywhere else, so an automation matching on it caught the wrong warnings. Every source now reports the same four names, and the name always agrees with the numeric level beside it.
+- **Warning severity did not mean the same thing across sources.** CWA Taiwan labelled its warnings advisory, watch, warning, and severe, while every other source used the yellow/amber/red or minor/moderate/severe/extreme wording. Worse, "severe" from Taiwan sat at the top tier where the same word means one tier lower everywhere else, so an automation matching on it caught the wrong warnings. CWA Taiwan now uses the same four-tier scale as the rest, and every source's severity name agrees with its numeric level, so `level` is safe to compare across sources even where the wording differs.
 
 - **An unrecognised severity word from a weather service left the two severity attributes disagreeing.** If a feed sent a severity outside the standard set, the alert kept that raw word while its numeric level fell back to the lowest tier, so a template comparing the two got contradictory answers. Unrecognised words now report as unknown, matching the level. The level itself is unchanged.
 

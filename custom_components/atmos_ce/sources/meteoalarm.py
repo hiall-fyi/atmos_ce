@@ -3,8 +3,6 @@
 This module implements the Meteoalarm weather warning source plugin,
 which fetches alerts from the Meteoalarm legacy Atom feeds covering
 40 European countries.
-
-Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6
 """
 from __future__ import annotations
 
@@ -43,8 +41,6 @@ class MeteoalarmSource(WeatherWarningSource):
     feeds. It supports 40 European countries and classifies alerts into
     standard types (rain, wind, snow, fog, thunderstorm, heat, cold)
     with yellow/orange/red severity levels.
-
-    Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6
     """
 
     FEED_URL_TEMPLATE = "https://feeds.meteoalarm.org/feeds/meteoalarm-legacy-atom-{country}"
@@ -112,14 +108,6 @@ class MeteoalarmSource(WeatherWarningSource):
 
         Fetches all selected countries concurrently with a semaphore to
         avoid overwhelming the server.
-
-        Args:
-            session: aiohttp client session.
-            config: Source configuration containing countries list.
-
-        Returns:
-            List of Alert objects from all selected countries.
-
         """
         countries = _as_list(config.get("countries", ["united-kingdom"]))
 
@@ -200,41 +188,28 @@ class MeteoalarmSource(WeatherWarningSource):
         return self._apply_location_filter(all_alerts, config)
 
     def _parse_alert(self, entry: dict, country: str) -> Alert | None:
-        """Parse a single Meteoalarm Atom entry into an Alert.
-
-        Args:
-            entry: Atom feed entry dictionary from xmltodict.
-            country: Country slug used to fetch this entry.
-
-        Returns:
-            Alert object or None if parsing fails.
-
-        """
-        # Extract CAP fields (with namespace prefix)
-        cap_ns = "cap:"
-
-        # Get basic fields
+        """Parse a single Meteoalarm Atom entry into an Alert."""
+        cap_ns = "cap:"  # CAP fields carry this namespace prefix in the Atom entry
         title = entry.get("title", "")
         alert_id = entry.get("id", "")
         updated = entry.get("updated", "")
 
-        # Extract CAP fields
         event = entry.get(f"{cap_ns}event", "Unknown")
-        severity = entry.get(f"{cap_ns}severity", "Minor")
+        # "" (not a real severity word) so a missing field resolves through
+        # resolve_severity's own unknown-branch below, preserving the
+        # yellow/2 default instead of colliding with the real "minor" tier.
+        severity = entry.get(f"{cap_ns}severity", "")
         area_desc = entry.get(f"{cap_ns}areaDesc", "")
         onset = entry.get(f"{cap_ns}onset", "")
         expires = entry.get(f"{cap_ns}expires", "")
 
-        # Extract link to full CAP XML
         links = _as_list(entry.get("link", []))
-
         cap_link = ""
         for link in links:
             if isinstance(link, dict) and link.get("@type") == "application/cap+xml":
                 cap_link = link.get("@href", "")
                 break
 
-        # Classify event type
         alert_type = self._classify_event(event)
 
         # Severity precedence: title colour keyword wins over CAP severity
@@ -258,12 +233,13 @@ class MeteoalarmSource(WeatherWarningSource):
             if resolved_name != "unknown":
                 severity_name, level = resolved_name, resolved_level
 
-        # Parse locations
         locations = [area_desc] if area_desc else []
 
-        # Use onset as start time, expires as end time
+        # Use onset as start time. end_time empty = "until further notice"
+        # (see helpers.get_active_alerts); falling back to updated made a
+        # no-expiry alert's window close at or before it was even fetched.
         start_time = onset or updated
-        end_time = expires or updated
+        end_time = expires
 
         return Alert(
             alert_id=f"meteoalarm_{compute_alert_id('meteoalarm', alert_id)}",
@@ -304,15 +280,7 @@ class MeteoalarmSource(WeatherWarningSource):
 
     @classmethod
     def _classify_event(cls, event: str) -> str:
-        """Classify a Meteoalarm CAP event string into a normalised alert type.
-
-        Args:
-            event: Event string from the CAP profile (e.g. "Wind", "Thunderstorm").
-
-        Returns:
-            Normalised alert type string (e.g. "wind", "rain", "unknown").
-
-        """
+        """Classify a Meteoalarm CAP event string into a normalised alert type."""
         return classify_by_keywords(event, cls._CLASSIFY_TABLE)
 
     async def validate_config(
@@ -320,16 +288,7 @@ class MeteoalarmSource(WeatherWarningSource):
         session: aiohttp.ClientSession,
         config: dict[str, Any],
     ) -> tuple[bool, str | None]:
-        """Validate configuration by testing feed access.
-
-        Args:
-            session: aiohttp client session.
-            config: Configuration to validate (must contain countries list).
-
-        Returns:
-            Tuple of (success, error_message).
-
-        """
+        """Validate configuration by testing feed access."""
         valid, error = self._validate_list_selection(
             config, "countries", self.SUPPORTED_COUNTRIES,
             singular="country", plural="countries",
@@ -343,12 +302,7 @@ class MeteoalarmSource(WeatherWarningSource):
         return await self._validate_http_access(session, url)
 
     def get_config_schema(self) -> vol.Schema:
-        """Return configuration schema for Meteoalarm.
-
-        Returns:
-            Voluptuous schema for Meteoalarm configuration.
-
-        """
+        """Return configuration schema for Meteoalarm."""
         country_options = dict(self.SUPPORTED_COUNTRIES)
 
         return common_config_schema(extra={

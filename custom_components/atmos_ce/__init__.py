@@ -11,7 +11,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, cast
 
 import voluptuous as vol
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import EVENT_HOMEASSISTANT_STOP, Platform
 from homeassistant.core import Event, HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
 from homeassistant.exceptions import (
@@ -86,6 +86,9 @@ async def async_setup(hass: HomeAssistant, config: dict[str, object]) -> bool:
         entry = hass.config_entries.async_get_entry(entry_id)
         if entry is None or entry.domain != DOMAIN:
             msg = f"Config entry {entry_id} not found for {DOMAIN}"
+            raise ServiceValidationError(msg)
+        if entry.state is not ConfigEntryState.LOADED:
+            msg = f"Config entry {entry_id} is not loaded"
             raise ServiceValidationError(msg)
 
         runtime_data: AtmosCERuntimeData = entry.runtime_data

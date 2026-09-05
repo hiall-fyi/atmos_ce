@@ -8,13 +8,18 @@ from typing import Final
 DOMAIN: Final = "atmos_ce"
 
 # Version (kept in sync with manifest.json, update both together)
-VERSION: Final = "1.1.0"
+VERSION: Final = "2.0.0"
 
 # Default User-Agent for outbound HTTP requests. Several upstream APIs
 # (NWS, Meteoalarm, Met Office) ask for an identifying UA with contact.
 DEFAULT_USER_AGENT: Final = (
     f"atmos_ce/{VERSION} (+https://github.com/hiall-fyi/atmos_ce)"
 )
+
+# Attribution for every entity whose data is Open-Meteo-derived (forecast,
+# air quality, stability, insight sensors) rather than from the picked
+# warning source. Open-Meteo's CC BY 4.0 license requires attribution.
+ATTRIBUTION_OPEN_METEO: Final = "Weather data by Open-Meteo.com (CC BY 4.0)"
 
 # Canonical set of alert types: every _classify_event() must return one of these.
 ALERT_TYPES: Final = frozenset({

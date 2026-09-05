@@ -122,15 +122,24 @@ class UnifiedCoordinator(DataUpdateCoordinator[UnifiedData]):
         if not fetch_warnings and not attempt_forecast:
             return UnifiedData()
 
-        warn_result, fc_result = await self._dispatch_fetches(
-            fetch_warnings, fetch_forecast, fetch_aq,
-        )
+        try:
+            warn_result, fc_result = await self._dispatch_fetches(
+                fetch_warnings, fetch_forecast, fetch_aq,
+            )
+        except Exception:
+            # A single-fetch-type cycle (only warnings or only forecast
+            # attempted) raises non-recoverable errors straight through
+            # _dispatch_fetches rather than returning them as a value, so
+            # this must be caught here too, not just in the loop below.
+            await self._save_failed_fetch()
+            raise
 
         # Auth failures + programmer bugs bypass partial-fetch tolerance.
         for result in (warn_result, fc_result):
             if isinstance(result, BaseException) and not isinstance(
                 result, _RECOVERABLE_ERRORS,
             ):
+                await self._save_failed_fetch()
                 raise result
 
         warn_failed = isinstance(warn_result, BaseException)
@@ -141,12 +150,7 @@ class UnifiedCoordinator(DataUpdateCoordinator[UnifiedData]):
         ):
             # Record the failed cycle before raising, so diagnostics show
             # a degraded source rather than a stale success.
-            await self.storage_manager.save_last_fetch(
-                self.source.source_id,
-                utcnow(),
-                success=False,
-                alert_count=0,
-            )
+            await self._save_failed_fetch()
             self._raise_total_failure(
                 fetch_warnings, attempt_forecast, warn_result, fc_result,
             )
@@ -181,6 +185,15 @@ class UnifiedCoordinator(DataUpdateCoordinator[UnifiedData]):
             forecast=forecast_data,
             air_quality=aq_data,
             astro=astro,
+        )
+
+    async def _save_failed_fetch(self) -> None:
+        """Record this cycle as failed so diagnostics don't show a stale success."""
+        await self.storage_manager.save_last_fetch(
+            self.source.source_id,
+            utcnow(),
+            success=False,
+            alert_count=0,
         )
 
     async def _dispatch_fetches(

@@ -45,7 +45,7 @@ class CurrentConditions(TypedDict):
     geopotential_height_500hpa: float | None
     geopotential_height_700hpa: float | None
     condition: str
-    weather_code: int
+    weather_code: int | None
     is_day: int | None
 
 
@@ -67,7 +67,7 @@ class HourlyForecast(TypedDict):
     visibility: float | None
     uv_index: float | None
     condition: str
-    weather_code: int
+    weather_code: int | None
     rain: float | None
     showers: float | None
     snowfall: float | None
@@ -93,7 +93,7 @@ class DailyForecast(TypedDict):
     sunrise: str | None
     sunset: str | None
     condition: str
-    weather_code: int
+    weather_code: int | None
 
 
 class AirQualityData(TypedDict):

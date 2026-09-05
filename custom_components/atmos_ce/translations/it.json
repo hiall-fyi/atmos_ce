@@ -13,7 +13,7 @@
       },
       "configure_source": {
         "title": "Configurazione di {source_name}",
-        "description": "Configura le impostazioni per {source_name}. Le previsioni meteorologiche, la qualità dell'aria e i dati astronomici vengono inclusi automaticamente: potrai modificare ciò che viene visualizzato in un secondo momento dalle opzioni.",
+        "description": "Configura le impostazioni per {source_name}. Le previsioni meteorologiche, la qualità dell'aria e i dati astronomici vengono inclusi automaticamente. Potrai personalizzare ciò che viene visualizzato in un secondo momento nelle opzioni.",
         "data": {
           "api_key": "Chiave API",
           "regions": "Regioni",
@@ -117,12 +117,12 @@
       "unknown": "Si è verificato un errore imprevisto."
     },
     "abort": {
-      "already_configured": "This source is already configured",
-      "source_not_found": "Selected weather warning source not found",
-      "invalid_state": "Configuration flow reached an invalid state. Please restart.",
-      "missing_source_id": "Configuration is missing source information. Please reconfigure.",
-      "reauth_successful": "Re-authentication was successful.",
-      "entry_not_found": "Configuration entry not found."
+      "already_configured": "Questa fonte è già configurata.",
+      "source_not_found": "Impossibile trovare la fonte meteorologica selezionata.",
+      "invalid_state": "Si è verificato un errore. Si prega di riavviare la procedura di installazione.",
+      "missing_source_id": "Nella configurazione mancano le informazioni sulla fonte. Si prega di riconfigurare.",
+      "reauth_successful": "La riautenticazione è andata a buon fine.",
+      "entry_not_found": "Voce di configurazione non trovata."
     }
   },
   "options": {
@@ -396,7 +396,11 @@
     },
     "binary_sensor": {
       "alert_active": {
-        "name": "Avviso attivo"
+        "name": "Avviso attivo",
+        "state": {
+          "on": "Avviso",
+          "off": "Nessun avviso"
+        }
       }
     },
     "weather": {

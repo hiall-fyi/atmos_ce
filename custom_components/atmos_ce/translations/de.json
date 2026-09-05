@@ -13,7 +13,7 @@
       },
       "configure_source": {
         "title": "{source_name} einrichten",
-        "description": "Nimm deine Einstellungen für „{source_name}“ vor. Wettervorhersagen, Luftqualität und astronomische Daten werden automatisch angezeigt – du kannst die Anzeige später in den Optionen anpassen.",
+        "description": "Konfigurieren Sie Ihre Einstellungen für „{source_name}“. Wettervorhersagen, Luftqualität und astronomische Daten werden automatisch angezeigt. Sie können die Anzeige später in den Optionen anpassen.",
         "data": {
           "api_key": "API-Schlüssel",
           "regions": "Regionen",
@@ -117,12 +117,12 @@
       "unknown": "Es ist ein unerwarteter Fehler aufgetreten."
     },
     "abort": {
-      "already_configured": "This source is already configured",
-      "source_not_found": "Selected weather warning source not found",
-      "invalid_state": "Configuration flow reached an invalid state. Please restart.",
-      "missing_source_id": "Configuration is missing source information. Please reconfigure.",
-      "reauth_successful": "Re-authentication was successful.",
-      "entry_not_found": "Configuration entry not found."
+      "already_configured": "Diese Quelle ist bereits eingerichtet.",
+      "source_not_found": "Die ausgewählte Wetterquelle wurde nicht gefunden.",
+      "invalid_state": "Es ist ein Fehler aufgetreten. Bitte starten Sie die Installation neu.",
+      "missing_source_id": "In der Konfiguration fehlen Quellangaben. Bitte nehmen Sie die Konfiguration erneut vor.",
+      "reauth_successful": "Die erneute Authentifizierung war erfolgreich.",
+      "entry_not_found": "KonfigurationsEintrag nicht gefunden."
     }
   },
   "options": {
@@ -396,7 +396,11 @@
     },
     "binary_sensor": {
       "alert_active": {
-        "name": "Warnung aktiv"
+        "name": "Warnung aktiv",
+        "state": {
+          "on": "Warnung",
+          "off": "Keine Warnmeldung"
+        }
       }
     },
     "weather": {

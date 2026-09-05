@@ -2,8 +2,6 @@
 
 This module implements the NWS weather warning source plugin,
 which fetches alerts from the NWS API.
-
-Requirements: 16.1, 16.2, 16.3, 16.4, 16.5, 16.6
 """
 from __future__ import annotations
 
@@ -39,8 +37,6 @@ class NWSSource(WeatherWarningSource):
     This source fetches weather warnings from the NWS API.
     It supports Minor, Moderate, Severe, and Extreme severity levels
     for various weather types.
-
-    Requirements: 16.1, 16.2, 16.3, 16.4, 16.5, 16.6
     """
 
     API_URL = "https://api.weather.gov/alerts/active"
@@ -73,21 +69,7 @@ class NWSSource(WeatherWarningSource):
         session: aiohttp.ClientSession,
         config: dict[str, Any],
     ) -> list[Alert]:
-        """Fetch alerts from NWS API.
-
-        Args:
-            session: aiohttp client session
-            config: Source configuration
-
-        Returns:
-            List of Alert objects
-
-        Raises:
-            aiohttp.ClientError: If HTTP request fails
-
-        Requirements: 16.1, 16.3, 16.4, 16.5
-
-        """
+        """Fetch alerts from NWS API."""
         _LOGGER.debug("Fetching alerts from NWS API")
 
         try:
@@ -105,12 +87,10 @@ class NWSSource(WeatherWarningSource):
 
             _LOGGER.debug("Successfully fetched NWS API response")
 
-            # Get features (alerts)
             features = data.get("features", [])
 
             _LOGGER.debug("Found %d features in NWS response", len(features))
 
-            # Parse each feature into an Alert
             alerts = []
             for feature in features:
                 alert = self._parse_alert(feature)
@@ -126,21 +106,10 @@ class NWSSource(WeatherWarningSource):
             raise
 
     def _parse_alert(self, feature: dict) -> Alert | None:
-        """Parse a single NWS alert from API feature.
-
-        Args:
-            feature: Feature dictionary from NWS API
-
-        Returns:
-            Alert object or None if parsing fails
-
-        Requirements: 16.3, 16.4, 16.5, 16.6
-
-        """
+        """Parse a single NWS alert from an API feature."""
         try:
             properties = feature.get("properties", {})
 
-            # Extract required fields
             alert_id = properties.get("id", "")
             event = properties.get("event", "Unknown")
             severity = properties.get("severity", "Unknown")
@@ -156,27 +125,21 @@ class NWSSource(WeatherWarningSource):
                 _LOGGER.warning("Skipping alert with empty ID")
                 return None
 
-            # Use ends if available, otherwise use expires
             end_time = ends or expires
 
             # NWS feed sends capitalised CAP severities (Minor/Moderate/Severe/Extreme).
             severity_name, level = resolve_severity(severity)
-
-            # Classify event into alert type
             alert_type = self._classify_event(event)
 
-            # Parse locations from areaDesc
-            # Format: "San Diego County Coastal Areas; Orange County Coastal"
+            # areaDesc format: "San Diego County Coastal Areas; Orange County Coastal"
             locations = [loc.strip() for loc in area_desc.split(";") if loc.strip()]
             if not locations:
                 locations = ["Unknown"]
 
-            # Build full description
             full_description = description
             if instruction:
                 full_description += f"\n\nInstructions: {instruction}"
 
-            # Create alert
             alert = Alert(
                 alert_id=f"nws_{compute_alert_id('nws', alert_id)}",
                 source="nws",
@@ -231,17 +194,7 @@ class NWSSource(WeatherWarningSource):
 
     @classmethod
     def _classify_event(cls, event: str) -> str:
-        """Classify NWS event into alert type.
-
-        Args:
-            event: NWS event name
-
-        Returns:
-            Alert type string
-
-        Requirements: 16.4
-
-        """
+        """Classify NWS event into alert type."""
         return classify_by_keywords(event, cls._CLASSIFY_TABLE)
 
     async def validate_config(
@@ -249,18 +202,7 @@ class NWSSource(WeatherWarningSource):
         session: aiohttp.ClientSession,
         config: dict[str, Any],
     ) -> tuple[bool, str | None]:
-        """Validate configuration by testing API access.
-
-        Args:
-            session: aiohttp client session
-            config: Configuration to validate
-
-        Returns:
-            Tuple of (success, error_message)
-
-        Requirements: 12.1, 12.2
-
-        """
+        """Validate configuration by testing API access."""
         return await self._validate_http_access(
             session, self.API_URL,
             params=self._build_area_params(config),
@@ -272,14 +214,8 @@ class NWSSource(WeatherWarningSource):
         """Build the ``area`` query params for a state selection.
 
         The API takes ``area`` as a comma-separated list; a repeated
-        ``area=`` parameter would keep only the last value.
-
-        Args:
-            config: Source configuration.
-
-        Returns:
-            ``{"area": "CA,NV"}``, or ``None`` for no state selected.
-
+        ``area=`` parameter would keep only the last value. Returns
+        ``{"area": "CA,NV"}``, or ``None`` for no state selected.
         """
         states = _as_list(config.get("state"))
         if not states:
@@ -287,14 +223,7 @@ class NWSSource(WeatherWarningSource):
         return {"area": ",".join(states)}
 
     def get_config_schema(self) -> vol.Schema:
-        """Return configuration schema for this source.
-
-        Returns:
-            Voluptuous schema for configuration
-
-        Requirements: 11.3, 12.1
-
-        """
+        """Return configuration schema for this source."""
         return common_config_schema(extra={
             # default=[] keeps the field clearable: without it an empty
             # submit omits the key and the options merge restores the old

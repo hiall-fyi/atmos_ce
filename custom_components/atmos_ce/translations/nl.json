@@ -13,7 +13,7 @@
       },
       "configure_source": {
         "title": "{source_name} instellen",
-        "description": "Stel je instellingen in voor {source_name}. Weersvoorspellingen, luchtkwaliteit en astronomische gegevens worden automatisch weergegeven. Je kunt later in de opties aanpassen wat je te zien krijgt.",
+        "description": "Stel je instellingen voor {source_name} in. Weersvoorspellingen, luchtkwaliteit en astronomische gegevens worden automatisch meegenomen. Je kunt later in de opties aanpassen wat je te zien krijgt.",
         "data": {
           "api_key": "API-sleutel",
           "regions": "Regio's",
@@ -117,12 +117,12 @@
       "unknown": "Er is een onverwachte fout opgetreden."
     },
     "abort": {
-      "already_configured": "This source is already configured",
-      "source_not_found": "Selected weather warning source not found",
-      "invalid_state": "Configuration flow reached an invalid state. Please restart.",
-      "missing_source_id": "Configuration is missing source information. Please reconfigure.",
-      "reauth_successful": "Re-authentication was successful.",
-      "entry_not_found": "Configuration entry not found."
+      "already_configured": "Deze bron is al ingesteld.",
+      "source_not_found": "De geselecteerde weerbron is niet gevonden.",
+      "invalid_state": "Er is een fout opgetreden. Start de installatie opnieuw.",
+      "missing_source_id": "Er ontbreken brongegevens in de configuratie. Pas de configuratie aan.",
+      "reauth_successful": "De herauthenticatie is gelukt.",
+      "entry_not_found": "Configuratie-item niet gevonden."
     }
   },
   "options": {
@@ -396,7 +396,11 @@
     },
     "binary_sensor": {
       "alert_active": {
-        "name": "Waarschuwing actief"
+        "name": "Waarschuwing actief",
+        "state": {
+          "on": "Waarschuwing",
+          "off": "Geen melding"
+        }
       }
     },
     "weather": {

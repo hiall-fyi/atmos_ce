@@ -58,16 +58,7 @@ class WorldwideForecastSource(WeatherWarningSource):
         session: aiohttp.ClientSession,
         config: dict[str, Any],
     ) -> list[Alert]:
-        """Return empty list, this source has no warning backend.
-
-        Args:
-            session: aiohttp client session.
-            config: Source configuration.
-
-        Returns:
-            Empty list.
-
-        """
+        """Return empty list, this source has no warning backend."""
         return []
 
     async def validate_config(
@@ -75,16 +66,7 @@ class WorldwideForecastSource(WeatherWarningSource):
         session: aiohttp.ClientSession,
         config: dict[str, Any],
     ) -> tuple[bool, str | None]:
-        """Validate configuration by testing Open-Meteo API access.
-
-        Args:
-            session: aiohttp client session.
-            config: Configuration to validate.
-
-        Returns:
-            Tuple of (success, error_message).
-
-        """
+        """Validate configuration by testing Open-Meteo API access."""
         latitude = config.get("forecast_latitude")
         longitude = config.get("forecast_longitude")
 
@@ -102,10 +84,11 @@ class WorldwideForecastSource(WeatherWarningSource):
     def get_config_schema(self) -> vol.Schema:
         """Return configuration schema for this source.
 
-        Returns:
-            Voluptuous schema with enabled, update_interval, and
-            forecast location fields.
-
+        Only ``enabled``/``update_interval``: unlike ``common_config_schema``,
+        this source has no ``location_filters`` (nothing to filter, it has
+        no warning backend). Forecast location + ``location_name`` are
+        collected by config_flow's separate ``forecast_location`` step, not
+        this schema.
         """
         return vol.Schema({
             vol.Optional("enabled", default=True): cv.boolean,

@@ -118,10 +118,10 @@ class ActiveAlertSensor(_BaseAlertSensor):
         return active[0].icon if active and active[0].icon else "mdi:alert"
 
     @property
-    def native_value(self) -> str:
-        """Return alert summary or 'None' when no alerts are active."""
+    def native_value(self) -> str | None:
+        """Return alert summary, or None (shown as Unknown) when no alerts are active."""
         active = self._active_alerts
-        return active[0].summary if active else "None"
+        return active[0].summary if active else None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -162,10 +162,10 @@ class UpcomingAlertSensor(_BaseAlertSensor):
         return upcoming[0].icon if upcoming and upcoming[0].icon else "mdi:clock-alert"
 
     @property
-    def native_value(self) -> str:
-        """Return alert summary or 'None' when no alerts are upcoming."""
+    def native_value(self) -> str | None:
+        """Return alert summary, or None (shown as Unknown) when no alerts are upcoming."""
         upcoming = self._upcoming_alerts
-        return upcoming[0].summary if upcoming else "None"
+        return upcoming[0].summary if upcoming else None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
