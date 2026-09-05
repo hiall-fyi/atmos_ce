@@ -15,5 +15,5 @@ mypy==2.0.0
 pytest==9.0.3
 pytest-asyncio==1.4.0
 pytest-homeassistant-custom-component==0.13.363
-hypothesis==6.152.4
+hypothesis==6.167.1
 aioresponses==0.7.8
