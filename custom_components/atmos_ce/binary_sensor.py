@@ -17,7 +17,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .coordinator import UnifiedCoordinator
-from .entity import AtmosBaseEntity
+from .entity import AtmosAlertEntity
 
 if TYPE_CHECKING:
     from . import AtmosCEConfigEntry
@@ -52,7 +52,7 @@ async def async_setup_entry(
     _LOGGER.debug("Added 1 binary sensor entity for source: %s", source_id)
 
 
-class AlertActiveBinarySensor(AtmosBaseEntity, BinarySensorEntity):
+class AlertActiveBinarySensor(AtmosAlertEntity, BinarySensorEntity):
     """Binary sensor indicating if any alerts are active."""
 
     _attr_icon = "mdi:alert-circle"

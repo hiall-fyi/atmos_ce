@@ -400,7 +400,11 @@ class AtmosCEConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     errors=errors,
                     description_placeholders={"source_name": source.source_name},
                 )
-            new_data = {**entry.data, "source_config": user_input}
+            # Merge: Worldwide Forecast stores its location outside the form schema.
+            new_data = {
+                **entry.data,
+                "source_config": {**entry.data.get("source_config", {}), **user_input},
+            }
             if entry.options:
                 # Setup reads entry.options once it exists, so merge the new
                 # values in there too, keeping the existing data-type toggles.

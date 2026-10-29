@@ -5,14 +5,15 @@ which fetches alerts from the DWD WFS API.
 """
 from __future__ import annotations
 
-import json
 import logging
+import re
 from typing import Any, ClassVar, Final
 
 import aiohttp
 import voluptuous as vol
 from homeassistant.util.dt import utcnow
 
+from ..http_retry import decode_json_object, require_shape
 from ..models import (
     Alert,
     get_color_for_level,
@@ -25,6 +26,7 @@ from ..source_base import (
     classify_by_keywords,
     common_config_schema,
     compute_alert_id,
+    raise_if_all_failed,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -44,6 +46,18 @@ _DWD_COLOR_TO_LEVEL: Final[dict[str, tuple[str, int]]] = {
     "#e53935": ("red", 4),
     "#b71c1c": ("red", 4),  # darker red = still the top tier
 }
+
+_RGB_TRIPLE: Final = re.compile(r"(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})")
+
+
+def _colour_key(raw: str) -> str:
+    """Normalise the live 'R G B' string to the lowercase hex key of the table."""
+    text = raw.strip()
+    match = _RGB_TRIPLE.fullmatch(text)
+    if match is None:
+        return text.lower()
+    red, green, blue = (int(part) for part in match.groups())
+    return f"#{red:02x}{green:02x}{blue:02x}"
 
 
 class DWDSource(WeatherWarningSource):
@@ -83,44 +97,27 @@ class DWDSource(WeatherWarningSource):
                 "outputFormat": "application/json",
             }
 
-            response = await self._fetch_with_retry(
+            # The byte cap aborts early: parsing gigabytes of JSON on the event loop would stall HA.
+            raw = await self._fetch_checked(
                 session,
                 self.API_URL,
                 params=params,
                 timeout=DEFAULT_FETCH_TIMEOUT,
+                body="bytes",
+                max_bytes=_DWD_MAX_BYTES,
             )
-            async with response:
-                if response.status != 200:
-                    _LOGGER.warning("DWD API returned HTTP %s", response.status)
-                    return []
-                # Early-abort on oversized payloads. DWD geometry alone
-                # can balloon the response, parsing gigabytes of JSON on
-                # the event loop would stall HA. Check Content-Length
-                # when the server is honest, otherwise limit the read.
-                content_length = response.content_length
-                if content_length is not None and content_length > _DWD_MAX_BYTES:
-                    _LOGGER.error(
-                        "DWD response too large (%d bytes > %d); aborting",
-                        content_length, _DWD_MAX_BYTES,
-                    )
-                    return []
-                raw = await response.content.read(_DWD_MAX_BYTES + 1)
-                if len(raw) > _DWD_MAX_BYTES:
-                    _LOGGER.error(
-                        "DWD response exceeded %d-byte cap; aborting",
-                        _DWD_MAX_BYTES,
-                    )
-                    return []
-            data = json.loads(raw)
+            data = decode_json_object(raw, "DWD")
 
             _LOGGER.debug("Successfully fetched DWD WFS API response")
 
             # Get features (alerts). Drop `geometry` eagerly, we never
             # consume it and each feature carries kilobytes of polygon
             # coordinates that only bloat memory.
-            features = data.get("features", [])
+            features: Any = data.get("features")  # require_shape below proves it is a list
+            require_shape(isinstance(features, list), "DWD", "no features list")
             for feature in features:
-                feature.pop("geometry", None)
+                if isinstance(feature, dict):
+                    feature.pop("geometry", None)
 
             _LOGGER.debug("Found %d features in DWD response", len(features))
 
@@ -130,6 +127,7 @@ class DWDSource(WeatherWarningSource):
                 if alert:
                     alerts.append(alert)
 
+            raise_if_all_failed(len(features), len(features) - len(alerts), "DWD alerts")
             _LOGGER.debug("Parsed %d alerts from DWD", len(alerts))
 
             return self._apply_location_filter(alerts, config)
@@ -161,8 +159,10 @@ class DWDSource(WeatherWarningSource):
 
             # Prefer EC_AREA_COLOR when present (authoritative per the
             # German CAP profile). Fall back to the free-text SEVERITY.
-            ec_color = (properties.get("EC_AREA_COLOR") or "").lower()
-            colour_info = _DWD_COLOR_TO_LEVEL.get(ec_color)
+            # Live feed sends "R G B"; only yellow is observed, orange and red are kept in hex.
+            colour_info = _DWD_COLOR_TO_LEVEL.get(
+                _colour_key(properties.get("EC_AREA_COLOR") or ""),
+            )
             if colour_info is not None:
                 severity_name, level = colour_info
             else:

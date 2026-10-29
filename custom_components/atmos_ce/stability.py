@@ -108,7 +108,7 @@ def compute_wind_shear(
     du = u_upper - u_sfc
     dv = v_upper - v_sfc
 
-    return round(math.sqrt(du * du + dv * dv), 1)
+    return round(math.hypot(du, dv), 1)
 
 
 def compute_lapse_rate(

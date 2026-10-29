@@ -8,13 +8,16 @@ from __future__ import annotations
 
 import asyncio
 import email.utils
+import json
 import logging
 import random
+import re
 from datetime import UTC, datetime
-from typing import Any, Final
+from typing import Any, Final, Literal, overload
 
 import aiohttp
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from multidict import CIMultiDict, CIMultiDictProxy
 
 from .const import (
     DEFAULT_USER_AGENT,
@@ -43,6 +46,108 @@ _RETRY_AFTER_MAX_S: Final = 30  # same as MAX_RETRY_DELAY
 # (for the occasional Cloudflare interstitial that resolves on second
 # try) and then stop.
 _MAX_403_ATTEMPTS: Final = 2
+
+# Chunk size for capped body reads (see ``async_read_capped``).
+_READ_CHUNK_BYTES: Final = 64 * 1024
+
+
+# Longest slice of an error body quoted in an exception message.
+_ERROR_EXCERPT_CHARS: Final = 200
+
+# Longest slice of an error body read from the stream for the excerpt.
+_ERROR_READ_BYTES: Final = 4096
+
+# An XML or HTML tag, dropped from error excerpts so the readable text fits the cap.
+_TAG: Final = re.compile(r"<[^<>]{0,512}>")
+
+# Parameter names whose value is a coordinate or a credential, with an optional "x_" or "access-" style prefix.
+_SENSITIVE_NAME: Final = (
+    r"(?<![A-Za-z0-9])(?:[A-Za-z0-9]{1,16}[_.-]){0,2}"
+    r"(?:lat|lon|lng|latlng|latitude|longitude|coordinates|location|q|api[_-]?key|key|token|secret|password|auth|appid)"
+)
+
+# In order: URL userinfo, a "?name=value" query glued to a path, name=value pairs (also "%3D"), JSON members,
+# bare "lat:51.5" numbers, Authorization-style headers.
+_REDACTIONS: Final = (
+    (re.compile(r"((?:\\?/){2})[^/@\s'\"\\]+@"), r"\1"),
+    (re.compile(r"(?<=\S)\?\w[\w.%-]*=[^\s'\"<>]*"), "?<redacted>"),
+    (
+        re.compile(rf"({_SENSITIVE_NAME}\s*(?:=|%3D)\s*)(?!value\b)[^\s&'\"<>]*", re.IGNORECASE),
+        r"\1<redacted>",
+    ),
+    (
+        re.compile(
+            r"(\\?\"(?:[\w.-]{0,100}?[_.-])?(?:lat|lon|lng|latitude|longitude|coordinates|api[_-]?key|key|token|secret|password)"
+            r"\\?\"\s*:\s*)(\\?\"[^\"\\]*\\?\"|-?[\d.]+)",
+            re.IGNORECASE,
+        ),
+        r"\1<redacted>",
+    ),
+    (
+        re.compile(r"(?<![A-Za-z0-9])((?:lat|lon|lng|latitude|longitude)\s*:\s*)-?\d[\d.]*", re.IGNORECASE),
+        r"\1<redacted>",
+    ),
+    (
+        re.compile(
+            r"((?:proxy-)?authorization|x-api-key|api-key|x-auth-token)(\s*:\s*)(?:(?:Bearer|Basic|Token|Digest)\s+)?[^\s'\",;<>]+",
+            re.IGNORECASE,
+        ),
+        r"\1\2<redacted>",
+    ),
+)
+
+
+class UpstreamResponseError(ValueError):
+    """The provider answered, but not with a usable body."""
+
+
+class UpstreamStatusError(UpstreamResponseError):
+    """The provider answered with a status other than 200."""
+
+    def __init__(self, message: str, status: int) -> None:
+        """Keep the status for the one caller that tolerates it."""
+        super().__init__(message, status)  # both in args so copy and pickle can rebuild it
+        self.status = status
+
+    def __str__(self) -> str:
+        """Show the message only."""
+        return str(self.args[0])
+
+
+def redact_url_query(text: str) -> str:
+    """Remove URL userinfo, query strings and coordinate or key pairs from free text."""
+    for pattern, replacement in _REDACTIONS:
+        text = pattern.sub(replacement, text)
+    return text
+
+
+def sanitize_response_error(
+    err: aiohttp.ClientResponseError | aiohttp.ConnectionTimeoutError,
+) -> aiohttp.ClientError:
+    """Rebuild ``err`` of either type without the request URL query (and request headers for a response error)."""
+    if not isinstance(err, aiohttp.ClientResponseError):
+        return type(err)(redact_url_query(str(err)))
+    url = err.request_info.real_url.with_query(None)
+    info = aiohttp.RequestInfo(url, err.request_info.method, CIMultiDictProxy(CIMultiDict()), url)
+    return aiohttp.ClientResponseError(
+        info, (), status=err.status, message=err.message, headers=err.headers,
+    )
+
+
+def require_shape(ok: bool, label: str, what: str) -> None:
+    """Raise ``UpstreamResponseError`` when a 200 answer lacks the shape the caller needs."""
+    if not ok:
+        raise UpstreamResponseError(f"{label}: {what}")
+
+
+def decode_json_object(raw: str | bytes, label: str) -> dict[str, Any]:
+    """Parse ``raw`` as a JSON object, raising ``UpstreamResponseError`` for anything else."""
+    try:
+        data = json.loads(raw)
+    except ValueError as err:
+        raise UpstreamResponseError(f"{label} is not valid JSON: {err}") from err
+    require_shape(isinstance(data, dict), label, "JSON is not an object")
+    return data
 
 
 def _jittered_backoff(attempt: int) -> float:
@@ -104,7 +209,29 @@ def _clamp_retry_delay(seconds: float) -> float:
     return max(_RETRY_AFTER_MIN_S, min(_RETRY_AFTER_MAX_S, seconds))
 
 
-async def async_fetch_with_retry(  # noqa: C901 (linear retry control flow with status + auth + jitter branches)
+async def async_fetch_with_retry(
+    session: aiohttp.ClientSession,
+    url: str,
+    *,
+    params: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+    timeout: aiohttp.ClientTimeout = DEFAULT_FETCH_TIMEOUT,
+    source_label: str = "HTTP",
+    logger: logging.Logger | None = None,
+) -> aiohttp.ClientResponse:
+    """Run the retry loop and sanitise the errors it raises (status, redirect loop, connect timeout)."""
+    try:
+        return await _retry_loop(
+            session, url, params=params, headers=headers, timeout=timeout,
+            source_label=source_label, logger=logger,
+        )
+    except (aiohttp.ClientResponseError, aiohttp.ConnectionTimeoutError) as err:
+        clean = sanitize_response_error(err)
+    # Raised outside the handler so the clean error has no __context__ pointing at the raw one.
+    raise clean
+
+
+async def _retry_loop(  # noqa: C901 (linear retry control flow with status + auth + jitter branches)
     session: aiohttp.ClientSession,
     url: str,
     *,
@@ -190,7 +317,7 @@ async def async_fetch_with_retry(  # noqa: C901 (linear retry control flow with 
                     response.release()
                     await asyncio.sleep(delay)
                     continue
-                # Final attempt, raise
+                # Final attempt, raise (the public wrapper sanitises it)
                 response.raise_for_status()
 
             return response
@@ -216,3 +343,114 @@ async def async_fetch_with_retry(  # noqa: C901 (linear retry control flow with 
     # Unreachable when MAX_RETRY_ATTEMPTS >= 1, but satisfies type checker
     msg = f"Retry exhausted for {source_label}"
     raise aiohttp.ClientError(msg) from last_err
+
+
+async def async_read_capped(
+    response: aiohttp.ClientResponse, max_bytes: int,
+) -> bytes | None:
+    """Read a body in chunks, None if over the cap; ``read(n)`` returns only the buffered part."""
+    content_length = response.content_length
+    if content_length is not None and content_length > max_bytes:
+        return None
+    buffer = bytearray()
+    async for chunk in response.content.iter_chunked(_READ_CHUNK_BYTES):
+        buffer += chunk
+        if len(buffer) > max_bytes:
+            return None
+    return bytes(buffer)
+
+
+async def _error_excerpt(response: aiohttp.ClientResponse) -> str:
+    """Return the start of an error body on one line with URL queries redacted, '' if unreadable."""
+    try:
+        raw = await response.content.read(_ERROR_READ_BYTES)
+    except (aiohttp.ClientError, TimeoutError):
+        return ""
+    text = raw[:_ERROR_READ_BYTES].decode("utf-8", errors="replace")
+    return redact_url_query(" ".join(_TAG.sub(" ", text).split()))[:_ERROR_EXCERPT_CHARS]
+
+
+@overload
+async def async_fetch_checked(
+    session: aiohttp.ClientSession,
+    url: str,
+    *,
+    params: dict[str, Any] | None = ...,
+    headers: dict[str, str] | None = ...,
+    timeout: aiohttp.ClientTimeout = ...,
+    source_label: str = ...,
+    logger: logging.Logger | None = ...,
+    body: Literal["text"] = ...,
+    max_bytes: int | None = ...,
+) -> str: ...
+
+
+@overload
+async def async_fetch_checked(
+    session: aiohttp.ClientSession,
+    url: str,
+    *,
+    params: dict[str, Any] | None = ...,
+    headers: dict[str, str] | None = ...,
+    timeout: aiohttp.ClientTimeout = ...,
+    source_label: str = ...,
+    logger: logging.Logger | None = ...,
+    body: Literal["json"],
+    max_bytes: int | None = ...,
+) -> dict[str, Any]: ...
+
+
+@overload
+async def async_fetch_checked(
+    session: aiohttp.ClientSession,
+    url: str,
+    *,
+    params: dict[str, Any] | None = ...,
+    headers: dict[str, str] | None = ...,
+    timeout: aiohttp.ClientTimeout = ...,
+    source_label: str = ...,
+    logger: logging.Logger | None = ...,
+    body: Literal["bytes"],
+    max_bytes: int,
+) -> bytes: ...
+
+
+async def async_fetch_checked(
+    session: aiohttp.ClientSession,
+    url: str,
+    *,
+    params: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+    timeout: aiohttp.ClientTimeout = DEFAULT_FETCH_TIMEOUT,
+    source_label: str = "HTTP",
+    logger: logging.Logger | None = None,
+    body: Literal["text", "json", "bytes"] = "text",
+    max_bytes: int | None = None,
+) -> str | dict[str, Any] | bytes:
+    """GET with retry and return a usable 200 body, else raise ``UpstreamResponseError``."""
+    response = await async_fetch_with_retry(
+        session, url, params=params, headers=headers, timeout=timeout,
+        source_label=source_label, logger=logger,
+    )
+    empty = f"{source_label} returned an empty body"
+    async with response:
+        if response.status != 200:
+            raise UpstreamStatusError(
+                f"{source_label} returned HTTP {response.status}: {await _error_excerpt(response)}",
+                response.status,
+            )
+        if body == "bytes":
+            if max_bytes is None:
+                msg = "max_bytes is required for body='bytes'"
+                raise TypeError(msg)
+            raw = await async_read_capped(response, max_bytes)
+            if raw is None:
+                msg = f"{source_label} response exceeded {max_bytes} bytes"
+                raise UpstreamResponseError(msg)
+            if not raw.strip():
+                raise UpstreamResponseError(empty)
+            return raw
+        text = await response.text()
+    if not text.strip():
+        raise UpstreamResponseError(empty)
+    return decode_json_object(text, source_label) if body == "json" else text

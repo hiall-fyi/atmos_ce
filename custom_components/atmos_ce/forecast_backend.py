@@ -8,12 +8,18 @@ internal implementation detail, not exposed as a user-facing source.
 from __future__ import annotations
 
 import logging
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone, tzinfo
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import aiohttp
+from homeassistant.util.dt import async_get_time_zone
 
-from .http_retry import async_fetch_with_retry
+from .http_retry import (
+    UpstreamResponseError,
+    async_fetch_checked,
+    redact_url_query,
+    require_shape,
+)
 
 if TYPE_CHECKING:
     from .forecast_types import (
@@ -26,9 +32,28 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 
 
+def _error_reason(data: dict[str, Any]) -> str:
+    """Return ': <reason>' when a 200 answer carries Open-Meteo's error marker."""
+    reason = data.get("reason") if data.get("error") is True else None
+    return f": {redact_url_query(str(reason))[:200]}" if reason else ""
+
+
+async def async_resolve_response_zone(data: dict[str, Any]) -> tzinfo | None:
+    """Resolve the response's IANA ``timezone`` name, or None when it cannot serve."""
+    name = data.get("timezone")
+    if not isinstance(name, str) or not name:
+        return None
+    try:
+        return await async_get_time_zone(name)
+    except (ValueError, OSError):
+        _LOGGER.debug("Unusable Open-Meteo time zone name %.64r, using the fixed offset", name)
+        return None
+
+
 def _normalise_iso_to_utc(
     raw: str | None,
     utc_offset_seconds: int,
+    zone: tzinfo | None = None,
 ) -> str | None:
     """Convert Open-Meteo's naive local ISO string to tz-aware UTC ISO.
 
@@ -39,15 +64,15 @@ def _normalise_iso_to_utc(
     treat every hour as UTC and shift non-UTC users' forecast by their
     timezone offset.
 
-    Given the ``utc_offset_seconds`` the API returns alongside the data,
-    we can pin each timestamp to a fixed offset then normalise to UTC
-    (HA accepts either form, UTC is stable across DST at the timezone
-    boundary).
+    A date-only string takes the response's zone when one was resolved (so
+    days after a daylight-saving change get the right midnight); any string
+    with a time uses the fixed ``utc_offset_seconds``, then is normalised to UTC.
 
     Args:
         raw: Naive ISO string from the Open-Meteo response, or None.
         utc_offset_seconds: ``data["utc_offset_seconds"]`` from the same
             response. Defaults to 0 when the API omits the field.
+        zone: Zone resolved from ``data["timezone"]``, or None to use the offset.
 
     Returns:
         ``"2026-05-09T12:00:00+00:00"``-style UTC ISO string, or None if
@@ -61,7 +86,9 @@ def _normalise_iso_to_utc(
     except ValueError:
         return None
     if parsed.tzinfo is None:
-        tz = timezone(timedelta(seconds=utc_offset_seconds))
+        # Only a date-only string is a local calendar day; every time label uses the request-time offset.
+        use_zone = zone is not None and "T" not in raw
+        tz = zone if use_zone and zone is not None else timezone(timedelta(seconds=utc_offset_seconds))
         parsed = parsed.replace(tzinfo=tz)
     return parsed.astimezone(UTC).isoformat()
 
@@ -88,6 +115,9 @@ _US_AQI_CATEGORIES: tuple[tuple[int, str, str], ...] = (
     (999_999, "Hazardous", "maroon"),
 )
 
+
+# Blocks the forecast request asks for and the parsers read.
+_FORECAST_BLOCKS: tuple[str, ...] = ("current", "hourly", "daily")
 
 _AQ_PARAMS: tuple[str, ...] = (
     "european_aqi",
@@ -262,7 +292,7 @@ class OpenMeteoBackend:
 
         """
         self.validate_coordinates(latitude, longitude)
-        _LOGGER.debug("Fetching forecast from Open-Meteo for lat=%s, lon=%s", latitude, longitude)
+        _LOGGER.debug("Fetching forecast from Open-Meteo")
 
         params = {
             "latitude": latitude,
@@ -305,12 +335,14 @@ class OpenMeteoBackend:
             "past_days": 0,
         }
 
-        response = await async_fetch_with_retry(
+        data = await async_fetch_checked(
             session, self.API_URL, params=params,
-            source_label="Open-Meteo", logger=_LOGGER,
+            source_label="Open-Meteo", logger=_LOGGER, body="json",
         )
-        async with response:
-            data = await response.json()
+        missing = [b for b in _FORECAST_BLOCKS if not isinstance(data.get(b), dict)]
+        require_shape(
+            not missing, "Open-Meteo forecast", f"missing {', '.join(missing)}{_error_reason(data)}",
+        )
 
         _LOGGER.debug("Successfully fetched Open-Meteo forecast")
         return data
@@ -451,12 +483,14 @@ class OpenMeteoBackend:
         self,
         data: dict[str, Any],
         days: int = 7,
+        zone: tzinfo | None = None,
     ) -> list[DailyForecast]:
         """Parse daily forecast from Open-Meteo response.
 
         Args:
             data: Open-Meteo API response.
             days: Number of days to include.
+            zone: Zone resolved from the response's ``timezone``, or None.
 
         Returns:
             List of daily forecast dictionaries.
@@ -474,7 +508,7 @@ class OpenMeteoBackend:
             weather_code = _safe_get(daily, "weather_code", i)
             condition = self._map_weather_code(weather_code, is_day=1)
             forecasts.append({
-                "datetime": _normalise_iso_to_utc(time, utc_offset) or time,
+                "datetime": _normalise_iso_to_utc(time, utc_offset, zone) or time,
                 "temperature_max": _safe_get(daily, "temperature_2m_max", i),
                 "temperature_min": _safe_get(daily, "temperature_2m_min", i),
                 "apparent_temperature_max": _safe_get(daily, "apparent_temperature_max", i),
@@ -500,12 +534,12 @@ class OpenMeteoBackend:
 
         ``weather_code=None`` (missing from the response) falls through to
         ``"exceptional"`` same as an unrecognised code, rather than
-        defaulting to 0 ("sunny") — a meaningful condition a missing field
-        did not actually report.
+        defaulting to 0 ("sunny"), which would claim a condition the missing
+        field never reported.
 
         ``is_day``: ``1`` if daytime, ``0`` if nighttime, ``None`` if
         unknown. When ``None`` the clear-sky code renders as
-        ``"clear-night"`` rather than ``"sunny"`` — a bright-sun icon at
+        ``"clear-night"`` rather than ``"sunny"``, since a bright-sun icon at
         3 a.m. is an obvious defect.
         """
         condition = self.WEATHER_CODE_MAP.get(weather_code, "exceptional")
@@ -531,7 +565,7 @@ class OpenMeteoBackend:
 
         """
         self.validate_coordinates(latitude, longitude)
-        _LOGGER.debug("Fetching air quality from Open-Meteo for lat=%s, lon=%s", latitude, longitude)
+        _LOGGER.debug("Fetching air quality from Open-Meteo")
 
         params = {
             "latitude": latitude,
@@ -542,12 +576,15 @@ class OpenMeteoBackend:
             "forecast_days": 5,
         }
 
-        response = await async_fetch_with_retry(
+        data = await async_fetch_checked(
             session, self.AIR_QUALITY_URL, params=params,
-            source_label="Open-Meteo", logger=_LOGGER,
+            source_label="Open-Meteo", logger=_LOGGER, body="json",
         )
-        async with response:
-            data = await response.json()
+        require_shape(
+            isinstance(data.get("current"), dict),
+            "Open-Meteo air quality",
+            f"missing current{_error_reason(data)}",
+        )
 
         _LOGGER.debug("Successfully fetched Open-Meteo air quality data")
         return data
@@ -616,16 +653,16 @@ class OpenMeteoBackend:
                 "current": "temperature_2m",
                 "forecast_days": 1,
             }
-            response = await async_fetch_with_retry(
+            data = await async_fetch_checked(
                 session, self.API_URL, params=params,
                 # Per attempt: all retries must fit inside HTTP_TIMEOUT.
                 timeout=aiohttp.ClientTimeout(total=10),
-                source_label="Open-Meteo", logger=_LOGGER,
+                source_label="Open-Meteo", logger=_LOGGER, body="json",
             )
-            async with response:
-                data = await response.json()
-                if "current" not in data:
-                    return False, "Invalid API response structure"
+            if "current" not in data:
+                return False, "Invalid API response structure"
             return True, None
+        except UpstreamResponseError as err:
+            return False, str(err)
         except aiohttp.ClientError as err:
             return False, f"Failed to connect to Open-Meteo: {err}"

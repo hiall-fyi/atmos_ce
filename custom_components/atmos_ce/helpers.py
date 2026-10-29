@@ -261,7 +261,7 @@ def filter_by_location(
 
     Args:
         alerts: List of alerts to filter.
-        location_filters: Location strings (or single comma-separated string).
+        location_filters: Location strings, or one string; entries may be comma-separated.
 
     Returns:
         Filtered list of alerts.
@@ -270,14 +270,11 @@ def filter_by_location(
     if not location_filters:
         return alerts
 
-    # Normalise: accept a single comma-separated string from TextSelector
-    if isinstance(location_filters, str):
-        location_filters = [f.strip() for f in location_filters.split(",") if f.strip()]
-
-    if not location_filters:
+    # a string or a list; every entry may hold comma-separated terms, empties are dropped
+    entries = [location_filters] if isinstance(location_filters, str) else location_filters
+    filters_lower = [part.strip().lower() for entry in entries for part in entry.split(",") if part.strip()]
+    if not filters_lower:
         return alerts
-
-    filters_lower = [f.lower() for f in location_filters]
 
     filtered: list[Alert] = []
     for alert in alerts:

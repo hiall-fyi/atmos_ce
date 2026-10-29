@@ -7,231 +7,220 @@
 
 <br />
 
-<em>Comprehensive Weather Suite for Home Assistant</em>
+# Atmos CE - Weather warnings, forecasts, air quality and astronomy for Home Assistant
 
-<!-- Platform Badges -->
-![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.12.0+-blue?style=for-the-badge&logo=home-assistant)
-![Python](https://img.shields.io/badge/Python-3.13%2B-blue?style=for-the-badge&logo=python&logoColor=white)
-![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)
+![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.12%2B-blue?style=for-the-badge&logo=home-assistant) ![HACS](https://img.shields.io/badge/HACS-Custom-orange?style=for-the-badge) ![Stable](https://img.shields.io/badge/Stable-2.1.0-brightgreen?style=for-the-badge) ![License](https://img.shields.io/badge/License-AGPL--3.0-lightgrey?style=for-the-badge)
 
-<!-- Status Badges -->
-![Version](https://img.shields.io/badge/Version-2.0.0-purple?style=for-the-badge)
-![License](https://img.shields.io/badge/License-AGPL--3.0-blue?style=for-the-badge)
-![Maintained](https://img.shields.io/badge/Maintained-Yes-green.svg?style=for-the-badge)
-![Coverage](https://img.shields.io/badge/Coverage-97%25-brightgreen?style=for-the-badge)
+![GitHub stars](https://img.shields.io/github/stars/hiall-fyi/atmos_ce?style=for-the-badge&logo=github) [![Buy Me A Coffee](https://img.shields.io/badge/Support-Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/hiallfyi)
 
-<!-- Community Badges -->
-![GitHub stars](https://img.shields.io/github/stars/hiall-fyi/atmos_ce?style=for-the-badge&logo=github)
-![GitHub issues](https://img.shields.io/github/issues/hiall-fyi/atmos_ce?style=for-the-badge&logo=github)
-![GitHub Release Date](https://img.shields.io/github/release-date/hiall-fyi/atmos_ce?style=for-the-badge&logo=github)
+**Atmos CE brings official weather warnings, forecasts, air quality and sun and moon times into Home Assistant. Pick your country's warning service and you get all of it from one integration, with no API key (except CWA Taiwan).**
 
-<!-- Support -->
-[![Buy Me A Coffee](https://img.shields.io/badge/Support-Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/hiallfyi)
-
-**Warnings, forecasts, air quality, and astronomical data — all in one integration.**
-
-**7 weather sources · 59 entities · golden hour · moon phase · zero API keys required (except CWA Taiwan)**
-
-[Quick Start](#quick-start) • [Features](#features) • [Supported Sources](#supported-sources) • [Entities](#entities) • [Configuration](#configuration) • [Services](#services) • [Troubleshooting](#troubleshooting) • [Discussions](https://github.com/hiall-fyi/atmos_ce/discussions)
+[Quick Start](#quick-start) • [Supported sources](#supported-sources) • [Features](#features) • [Configuration](#configuration) • [FAQ](#faq) • [Discussions](https://github.com/hiall-fyi/atmos_ce/discussions)
 
 </div>
 
 ---
 
-## Why Atmos CE?
+## About
 
-Add one weather source and you get everything — official government warnings, current conditions, hourly and daily forecasts, air quality readings, and astronomical data like golden hour times and moon phase. No need to set up multiple integrations or piece things together.
+Atmos CE is a community-built Home Assistant integration. It reads warnings from national weather services, and forecasts and air quality from [Open-Meteo](https://open-meteo.com/). Sun and moon times are worked out locally. It is developed independently of every service it talks to.
 
-You choose what you want. Each source comes with toggles for warnings, forecasts, and air quality, so you only see the data you care about. If you're in the UK, add Met Office and you're done. Travelling between the UK and Germany? Add both Met Office and DWD — each runs independently with its own update schedule.
+---
 
-For locations without a dedicated warning source (like Japan or Australia), the Worldwide Forecast option gives you forecasts, air quality, and astronomical data for any location on Earth.
+## Why use Atmos CE
+
+Three situations where it is worth a look:
+
+1. **You want official warnings you can build automations on.** Every warning service reports in its own format. Atmos CE turns them all into the same four entities and the same four severity levels, so an automation written for one source needs only its entity names changed to work with another.
+2. **You want forecasts, air quality and sun and moon times next to the warnings.** Each source comes with all four, and you switch off what you do not need.
+3. **You follow more than one place.** Add the integration once per source. Each runs on its own schedule, so you can watch the UK and Germany at the same time.
+
+If all you need is a weather card, a built-in weather integration is enough. Atmos CE is for when you also want warnings or the extra sensors.
+
+---
+
+## Supported sources
+
+| Source | Coverage | API key | Warnings |
+| --- | --- | --- | --- |
+| **Met Office** | United Kingdom | No | Yellow, amber and red warnings, filtered by region and local authority |
+| **Meteoalarm** | 39 European countries | No | Warnings from each country's national weather service |
+| **National Weather Service** | United States | No | Active alerts, filtered by one or more states |
+| **Environment Canada** | Canada | No | Alerts, filtered by one or more provinces |
+| **Deutscher Wetterdienst (DWD)** | Germany | No | Warnings at municipality level |
+| **CWA Taiwan** | Taiwan | Yes (free) | Typhoon, rain, wind and cold warnings, filtered by county |
+| **Worldwide Forecast** | Anywhere | No | None. Forecasts, air quality and astronomy only |
+
+Forecasts, air quality and astronomy come with every source above. For a country with no warning service in the list, such as Japan or Australia, use Worldwide Forecast.
+
+A CWA Taiwan key is free from the [CWA open data platform](https://opendata.cwa.gov.tw/).
+
+---
+
+## Quick start
+
+### Prerequisites
+
+- Home Assistant 2024.12 or newer
+- [HACS](https://hacs.xyz/) installed
+
+### 1. Install via HACS
+
+Atmos CE is added to HACS as a custom repository.
+
+1. In HACS, open the three-dot menu, choose **Custom repositories**, and add `https://github.com/hiall-fyi/atmos_ce` with the type **Integration**.
+2. Search for **Atmos CE** and click **Download**.
+3. Restart Home Assistant.
+
+[![Open your Home Assistant instance and open a repository inside HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=hiall-fyi&repository=atmos_ce&category=integration)
+
+<details>
+<summary>Manual installation</summary>
+
+Copy the `custom_components/atmos_ce/` folder from this repository into your Home Assistant `config/custom_components/` folder and restart.
+
+</details>
+
+### 2. Add a source
+
+1. **Settings → Devices & Services → Add Integration → Atmos CE**
+2. Pick your weather source.
+3. Fill in the source's own settings (regions, states, provinces or counties, or the API key for CWA Taiwan).
+
+Forecasts, air quality and astronomy are included. To follow another place, add the integration again with another source.
+
+### 3. Verify
+
+Open **Settings → Devices & Services → Atmos CE**. Your source should show as a device with its entities, and **Alert Active** should read `off` if nothing is in force. If something looks wrong, check **Settings → System → Logs** and filter by `atmos_ce`.
 
 ---
 
 ## Features
 
-- **7 Weather Sources** — Met Office, Meteoalarm (40 European countries), NWS, Environment Canada, DWD, CWA Taiwan, plus Worldwide Forecast for anywhere else
-- **Everything Built In** — Every source includes forecasts, air quality, and astronomical data. Toggle what you need.
-- **13 Alert Types** — Rain, wind, snow, ice, fog, thunderstorm, heat, cold, flood, tornado, fire, coastal hazard, and avalanche — each with 4 severity levels
-- **59 Entities** — Current conditions, hourly/daily forecasts, air quality (2 AQI indices + 7 pollutants), atmospheric stability, weather insights, pressure trend, and astronomical data
-- **Atmospheric Stability** — CAPE, lifted index, wind shear, lapse rate, LCL height, and a composite stability assessment rated from None to High — so you can see storm potential at a glance
-- **Weather Insights** — Dew point comfort (dry to oppressive), visibility category (fog to clear), feels-like context (wind chill, heat index, or neutral), and 3-hour pressure trend (rising, steady, falling)
-- **Astronomical Sensors** — Golden hour and blue hour times for photography, localised moon phase (illumination percentage in attributes), moonrise/moonset, and daylight duration — all calculated locally with correct polar day / polar night handling above the Arctic and Antarctic circles
-- **Air Quality** — European AQI, US AQI, PM2.5, PM10, NO₂, O₃, SO₂, CO, CO₂ with category classification
-- **Extended Forecast Service** — Call `atmos_ce.get_extended_forecast` to get the full hourly or daily forecast with all fields, including dew point, CAPE, and precipitation breakdown — perfect for automations and custom cards
-- **Data Type Toggles** — Choose which data types each source shows (warnings, forecasts, air quality) to keep things tidy
-- **"Until Further Notice" Alerts** — Alerts without an explicit end time stay visible instead of disappearing
-- **Automatic Retries** — If a weather service is temporarily down, the integration retries quietly in the background so you don't have to do anything
-- **Honest Availability** — Sensors go `unavailable` when the upstream fetch fails instead of holding stale values, so automations can react accordingly
+### Warnings
 
----
+Four entities per source: the highest-priority **Active Alert**, the next **Upcoming Alert**, an **Alert Count** and an **Alert Active** on/off sensor. Alerts are sorted into 13 types (rain, wind, snow, ice, fog, thunderstorm, heat, cold, flood, tornado, fire, coastal hazard and avalanche) and four severity levels, whichever service they came from. Warnings with no end time stay visible instead of disappearing. The attributes carry the type, severity, level, start and end, affected places, progress, time until start or end, the description and a link to the official page.
 
-## Quick Start
+### Forecasts and current conditions
 
-**Prerequisites:** Home Assistant 2024.12.0+ with HACS installed.
+A standard Home Assistant weather entity with current conditions, hourly (48 hours) and daily (7 days) forecasts, plus 25 sensors for current conditions such as temperature, wind, rain, cloud cover, UV index, visibility and soil moisture. The `atmos_ce.get_extended_forecast` service returns every forecast field for automations and custom cards.
 
-### 1. Install via HACS
+### Atmospheric stability and weather insights
 
-1. Add `https://github.com/hiall-fyi/atmos_ce` as a custom repository in HACS
-2. Install "Atmos CE"
-3. Restart Home Assistant
+CAPE, lifted index, wind shear, lapse rate and LCL height, with a composite stability rating from None to High and a note on how confident it is. Plain-language sensors for dew point comfort, visibility category and feels-like context, and a 3-hour pressure trend.
 
-<details>
-<summary>Manual Installation</summary>
+### Air quality
 
-Copy the `custom_components/atmos_ce/` folder to your Home Assistant `config/custom_components/` directory and restart.
-</details>
+European AQI, US AQI, PM2.5, PM10, NO₂, O₃, SO₂, CO and CO₂, each with a category in its attributes.
 
-### 2. Add a Source
+### Astronomy
 
-1. Go to **Settings → Devices & Services → Add Integration**
-2. Search for **Atmos CE**
-3. Pick your weather source from the dropdown
-4. Configure source-specific settings (regions, states, API key, etc.)
+Golden hour and blue hour, moon phase in your Home Assistant language with the illumination percentage, moonrise, moonset and daylight duration. Everything is calculated on your Home Assistant machine, and polar day and night are handled: daylight reads 24 hours in midnight sun and 0 in polar night, and `sun_always_up` and `sun_always_down` are available to automations.
 
-That's it. Forecasts, air quality, and astronomical data are included automatically.
+### Honest availability
 
-You can add the integration multiple times — once per source.
-
-### 3. Verify
-
-Check **Settings → System → Logs** and filter for `atmos_ce`. You should see successful setup messages with no errors.
-
----
-
-## Supported Sources
-
-| Source | Country | API Key? | What You Get |
-|--------|---------|----------|-------------|
-| **Met Office** | 🇬🇧 UK | No | Yellow/Amber/Red weather warnings with region and local authority filtering |
-| **Meteoalarm** | 🇪🇺 40 European countries | No | Severe weather alerts from national meteorological services across Europe |
-| **National Weather Service** | 🇺🇸 USA | No | Active weather alerts with state filtering |
-| **Environment Canada** | 🇨🇦 Canada | No | Weather alerts with province filtering |
-| **Deutscher Wetterdienst** | 🇩🇪 Germany | No | Weather warnings at municipality level |
-| **CWA Taiwan** | 🇹🇼 Taiwan | Yes (free) | Typhoon, rain, wind, and cold warnings with county filtering |
-| **Worldwide Forecast** | 🌍 Anywhere | No | Forecasts, air quality, and astronomical data for any location (no warnings) |
-
-Every warning source above also comes with forecasts, air quality, and astronomical data built in — powered by Open-Meteo behind the scenes. You can toggle each data type on or off in the options. If you're in a country without a dedicated warning source, use Worldwide Forecast to get everything except warnings.
-
----
-
-## Entities
-
-Each source creates up to 59 entities depending on your data type settings. Here's what you get when everything is enabled:
-
-### Warnings (4 entities)
-
-| Entity | Type | What It Shows |
-|--------|------|--------------|
-| **Active Alert** | Sensor | The highest-priority warning currently in effect, with full details in attributes |
-| **Upcoming Alert** | Sensor | The next warning that hasn't started yet |
-| **Alert Count** | Sensor | Number of active warnings right now |
-| **Alert Active** | Binary Sensor | On/off — are there any active warnings? |
-
-Alert sensors include rich attributes: alert type, severity, level, start/end times, affected locations, progress percentage, time until start/end, description, and a link to the official alert page.
-
-Not available for Worldwide Forecast (no warning source).
-
-### Current Conditions (25 sensors)
-
-Temperature, apparent temperature, dew point, humidity, pressure, surface pressure, wind speed/direction/gusts, precipitation, rain, showers, snowfall, cloud cover (total/low/mid/high), UV index, visibility, CAPE, lifted index, freezing level height, soil temperature, and soil moisture.
-
-### Atmospheric Stability (4 sensors)
-
-Wind shear (0–6 km), lapse rate (700–500 hPa), LCL height, and a composite stability assessment that combines all available parameters into a single rating from None to High. The assessment also tells you how confident it is based on how many parameters are available.
-
-### Weather Insights (4 sensors)
-
-Dew point comfort (dry → comfortable → slightly humid → humid → oppressive), visibility category (fog → poor → moderate → good → clear), feels-like context (wind chill, heat index, or neutral), and 3-hour pressure trend (rising, steady, or falling) with the actual pressure change in attributes.
-
-### Air Quality (9 sensors)
-
-European AQI, US AQI, PM2.5, PM10, NO₂, O₃, SO₂, CO, CO₂ — each with category classification in attributes.
-
-### Astronomical (12 sensors)
-
-Golden hour (morning/evening start and end), blue hour (morning/evening start and end), moon phase (translated to your HA language, illumination percentage in attributes), moonrise, moonset, and daylight duration.
-
-Polar locations are handled correctly — daylight duration reads 24 hours during midnight sun and 0 hours during polar night, and the astro data exposes `sun_always_up` / `sun_always_down` flags for automations.
-
-Moon phase and daylight duration are enabled by default. Golden hour, blue hour, moonrise, and moonset are disabled by default — enable the ones you want in the entity settings.
-
-### Weather Entity (1)
-
-A standard Home Assistant weather entity with current conditions, hourly (48h), and daily (7d) forecasts. Works with weather cards out of the box.
+If a weather service errors, times out or sends back something the integration cannot read, the alert sensors go `unavailable` rather than saying there are no alerts, so an automation can tell "all clear" from "no answer". Short outages are retried quietly in the background, and the sensors return as soon as a refresh works.
 
 ---
 
 ## Configuration
 
-Access via **Settings → Devices & Services → Atmos CE → Configure** (gear icon).
+Open **Settings → Devices & Services → Atmos CE → Configure**. Changes apply straight away, with no restart.
 
-### Source Settings
-
-- **Enabled** — turn a source on or off without removing it
-- **Update Interval** — how often to check for new data (5–1440 minutes; default 30, or 15 for Worldwide Forecast)
-- **Location Filters** — comma-separated text to filter alerts by location name
-
-Plus source-specific settings:
-- **Met Office** — select UK regions and/or local authorities
-- **Meteoalarm** — select one or more European countries
-- **NWS** — select a US state
-- **Environment Canada** — select one or more provinces
-- **CWA Taiwan** — API key + optional county selection
-
-### Data Type Toggles
-
-Each source has toggles for the data types it provides:
-
-- **Warnings** — weather warning alerts (not available for Worldwide Forecast)
-- **Forecasts** — current conditions, hourly and daily forecasts, weather entity
-- **Air Quality** — pollutant readings and AQI indices
-
-All toggles default to on. Turn off what you don't need — entities are removed when a toggle is off and come back when you turn it on again. No restart needed.
-
-### Forecast Location
-
-By default, forecasts use your Home Assistant home coordinates. You can override this in the options if your warning region doesn't match your exact location — for example, if you monitor Met Office warnings for South East England but want forecasts for a specific town.
+| Setting | What it does |
+| --- | --- |
+| **Enabled** | Turns a source on or off without removing it |
+| **Update interval** | How often to check for new data, from 5 to 1440 minutes. The default is 30, or 15 for Worldwide Forecast |
+| **Location filters** | Keeps only alerts whose place matches. Separate several places with commas. Leave it blank to see everything the source covers |
+| **Source-specific** | Met Office: regions and local authorities. Meteoalarm: countries. NWS: states. Environment Canada: provinces. CWA Taiwan: API key and counties |
+| **Data types** | Switch Warnings, Forecasts and Air Quality on or off for each source. All three start on. Entities are removed when a type is off and come back when you turn it on again |
+| **Forecast location** | Forecasts use your Home Assistant home location by default. Set another latitude and longitude if your warning area is somewhere else, for example forecasts for one town while watching a whole region |
 
 ---
 
-## Services
+## Entities and services
 
-### `atmos_ce.get_extended_forecast`
+Each source creates up to 59 entities, depending on its data type settings.
 
-Returns the full hourly or daily forecast with all fields — including dew point, CAPE, rain/showers/snowfall breakdown, snow depth, and other fields not available through the standard `weather.get_forecasts` service.
+| Group | Entities |
+| --- | --- |
+| Warnings | 4: Active Alert, Upcoming Alert, Alert Count, Alert Active. Not created for Worldwide Forecast |
+| Current conditions | 25 sensors |
+| Atmospheric stability | 4 sensors |
+| Weather insights | 4 sensors |
+| Air quality | 9 sensors |
+| Astronomy | 12 sensors. Moon phase and daylight duration are on by default, and the others are off until you enable them in the entity settings |
+| Weather | 1 weather entity |
 
-**Parameters:**
-- **Config Entry ID** — pick your Atmos CE source from the dropdown
-- **Type** — `hourly` (default) or `daily`
+When an alert's attributes would be too large for Home Assistant's history database (16 KB), they are shortened: only the first 20 places are kept (`locations_count` holds the full number), long descriptions in `all_alerts` are cut, and `attributes_truncated` is set to `true`. The alerts themselves are unchanged.
 
-Use this in automations, scripts, or custom cards when you need the complete forecast data.
+**Service `atmos_ce.get_extended_forecast`** returns the full hourly or daily forecast, including dew point, CAPE, the rain, showers and snowfall breakdown and other fields the standard `weather.get_forecasts` service leaves out. Pick the Atmos CE source and the type (`hourly` or `daily`) under **Developer Tools → Actions**.
 
 ---
 
-## Troubleshooting
+## Known limitations
+
+These are how the integration and its data sources work today, not bugs. Check here before opening a report.
+
+| Limitation | Detail |
+| --- | --- |
+| A finished warning can stay shown until the next refresh | The active and upcoming lists are worked out each time data refreshes, so a warning that has just ended can show as active for up to one update interval (30 minutes by default). A shorter interval narrows the gap. |
+| Met Office times are read as UK local time | The Met Office feed gives clock times without a time zone. Atmos CE assumes UK local time. That has not yet been checked against a summer-time warning, so while the UK is on British Summer Time a warning could start or end an hour off. |
+| DWD counts each municipality's warning separately | DWD's feed lists warnings per municipality, so in widespread weather **Alert Count** can run into the hundreds. A location filter keeps it to the places you care about. |
+| One failing Meteoalarm country makes the source's alert sensors unavailable | The warnings for all selected countries are fetched together. If one country's feed is down or has been retired, remove it in the options to get the others back. |
+| Environment Canada makes many small requests | It reads several folders of alert files on every refresh, roughly 60 to 70 requests. A longer update interval keeps this light. |
+| Daily sunrise and sunset in the extended forecast service | They are written in the forecast location's local time as it was today, so for days after a clock change they can read an hour off. The astronomy sensors are not affected. |
+
+---
+
+## FAQ
 
 <details>
-<summary><strong>No alerts showing up</strong></summary>
+<summary><strong>Can I use more than one source?</strong></summary>
 
-This usually means there are genuinely no active warnings for your area. Check the official source website to confirm. If warnings exist but don't appear:
+Yes. Add the integration once per source, for example Met Office for home and DWD for a second place. Each has its own settings and update schedule.
 
-1. Check your location filters aren't too restrictive
-2. Verify the update interval hasn't passed yet (check the sensor's `last_updated` attribute)
-3. Enable debug logging (see below)
 </details>
 
 <details>
-<summary><strong>Source disabled after failures</strong></summary>
+<summary><strong>My country is not listed.</strong></summary>
 
-A source is automatically paused after 5 failed attempts to reach the weather service. Check **Settings → System → Repairs** for details.
+Use **Worldwide Forecast** for forecasts, air quality and astronomy anywhere. If your country has a public warning service, [start a Discussion](https://github.com/hiall-fyi/atmos_ce/discussions) and say which one.
 
-Common causes:
-- Your network connection is down or unstable
-- The weather service is temporarily unavailable
-- Invalid API key (CWA Taiwan)
+</details>
 
-Fix the underlying issue, then reload the integration or restart HA to re-enable.
+<details>
+<summary><strong>Why does Active Alert say "unknown"?</strong></summary>
+
+It means no warning is in force, so there is nothing to show. For automations, use **Alert Active** (on or off) or **Alert Count**, which always have a value.
+
+</details>
+
+<details>
+<summary><strong>No alerts are showing, but I expect some.</strong></summary>
+
+Usually there really are none, and the official site will confirm it. If warnings exist but do not appear:
+
+1. Check that your location filters are not too narrow.
+2. Wait for the next refresh. The sensor's last update time shows when the data was last fetched.
+3. Turn on debug logging (below) and look at what the source returned.
+
+</details>
+
+<details>
+<summary><strong>Alert sensors say "unavailable".</strong></summary>
+
+The last request for warnings either failed or came back as something the integration could not read, such as an error page. Instead of reporting no alerts, the alert sensors go `unavailable` until the next refresh works. Forecast and air quality sensors keep their own data.
+
+Common causes are a network problem, the weather service being down for a while, or a wrong or expired CWA Taiwan key, in which case Home Assistant asks you to enter the key again. Nothing needs switching back on. The integration tries again at the next update interval. If it keeps failing, turn on debug logging and check the log for the message that explains why.
+
+</details>
+
+<details>
+<summary><strong>Where does the data come from?</strong></summary>
+
+Warnings come from the national service you picked. Forecasts and air quality come from Open-Meteo, and sun and moon times are calculated locally. Only CWA Taiwan needs a key.
+
 </details>
 
 <details>
@@ -246,55 +235,56 @@ logger:
     custom_components.atmos_ce: debug
 ```
 
-Restart Home Assistant and check **Settings → System → Logs**.
+Restart Home Assistant, reproduce the problem, then check **Settings → System → Logs** and filter by `atmos_ce`. Atmos CE is built not to write your coordinates into the log, but glance through it before you share it publicly.
+
 </details>
 
-For issues not covered here, check **Settings → System → Logs** (filter by `atmos_ce`), search the existing [GitHub Issues](https://github.com/hiall-fyi/atmos_ce/issues), and if it's new, [open a bug report](https://github.com/hiall-fyi/atmos_ce/issues/new/choose). The form walks you through what to include (your versions, which weather source, and a debug log), which is what turns a triage round-trip into a same-day fix.
+For anything not covered here, search the [existing issues](https://github.com/hiall-fyi/atmos_ce/issues) and, if it is new, [open a bug report](https://github.com/hiall-fyi/atmos_ce/issues/new/choose). The form asks for your versions, which weather source is involved and a debug log, which is what turns a back-and-forth into a quick fix.
 
 ---
 
 ## Uninstall
 
-1. Go to **Settings → Devices & Services → Atmos CE**
-2. Click the **three-dot menu** (⋮) and select **Delete**
-3. Restart Home Assistant
-4. If installed via HACS: open **HACS → Integrations**, find Atmos CE, click the three-dot menu and **Remove**
-5. If installed manually: delete the `custom_components/atmos_ce/` folder
-6. Restart Home Assistant again
+1. **Settings → Devices & Services → Atmos CE → ⋮ → Delete**
+2. Restart Home Assistant.
+3. In HACS, find Atmos CE and choose **⋮ → Remove**. For a manual install, delete the `config/custom_components/atmos_ce/` folder.
+4. Restart Home Assistant again.
 
 ---
 
-## License
+## Documentation
 
-**GNU Affero General Public License v3.0 (AGPL-3.0)**
-
-Free to use, modify, and distribute. Modifications must be open source under AGPL-3.0 with attribution.
-
-**Original Author:** Joe Yiu ([@hiall-fyi](https://github.com/hiall-fyi))
-
-See [LICENSE](LICENSE) for full details.
+| Document | Purpose |
+| --- | --- |
+| [CHANGELOG.md](CHANGELOG.md) | Version history |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Setting up, checks and pull request guidelines |
+| [SECURITY.md](SECURITY.md) | How to report a security problem |
 
 ---
 
 ## Contributing
 
-Contributions welcome! Whether it's a new warning source, bug fix, or documentation improvement.
+Atmos CE grows through reports, data and testing from people who use it. If you have hit a problem, [open a bug report](https://github.com/hiall-fyi/atmos_ce/issues/new/choose). If you want something changed or just want to ask, [start a Discussion](https://github.com/hiall-fyi/atmos_ce/discussions). Logs and the name of the weather source involved are what make the difference between a long thread and a quick fix.
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/new-source`)
-3. Commit your changes
-4. Open a Pull Request
+Code contributions are welcome too. See [CONTRIBUTING.md](CONTRIBUTING.md), and float an idea in Discussions before you write code for a new source.
 
-Hit a problem? [Open a bug report](https://github.com/hiall-fyi/atmos_ce/issues/new/choose). Want something changed, or just want to ask? [Start a Discussion](https://github.com/hiall-fyi/atmos_ce/discussions). Logs and the name of the weather source involved are what make the difference between a triage round-trip and a same-day fix.
+---
+
+## License
+
+Released under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. Modifications must be released as open source under the same licence with attribution. See [LICENSE](LICENSE) for the full text.
+
+**Original author:** Joe Yiu ([@hiall-fyi](https://github.com/hiall-fyi))
 
 ---
 
 <details>
 <summary><strong>Disclaimer</strong></summary>
 
-This project is not affiliated with, endorsed by, or connected to any of the weather services it integrates with (Met Office, NWS, Environment Canada, DWD, CWA, Meteoalarm, Open-Meteo) or Home Assistant. All trademarks belong to their respective owners.
+This project is not affiliated with, endorsed by, or connected to any of the weather services it uses (Met Office, Meteoalarm, the National Weather Service, Environment Canada, DWD, CWA Taiwan and Open-Meteo) or to Home Assistant. All trademarks belong to their respective owners.
 
-Weather warnings are provided for informational purposes only. Always refer to your local weather service for official safety guidance.
+Weather warnings are provided for information only. Always follow your local weather service for official safety guidance.
 
 This integration is provided "as is" without warranty. Use at your own risk.
+
 </details>

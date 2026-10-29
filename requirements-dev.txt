@@ -3,17 +3,17 @@
 #
 # Lint and type checking run locally, not in CI: the ruff and mypy settings
 # live in pyproject.toml, which is not part of this repository, so a CI runner
-# would silently check against tool defaults instead. Home Assistant is here
-# because the mypy settings are tuned against its type stubs.
-homeassistant==2026.9.0
+# would silently check against tool defaults instead.
 xmltodict==1.0.4
-ruff==0.15.12
-mypy==2.0.0
+ruff==0.17.2
+mypy==2.4.0
 
 # The test suite is not part of this repository either; these are here so a
-# fresh clone can set up the same local environment.
-pytest==9.0.3
-pytest-asyncio==1.4.0
-pytest-homeassistant-custom-component==0.13.363
-hypothesis==6.152.4
-aioresponses==0.7.8
+# fresh clone can set up the same local environment. homeassistant, pytest and
+# pytest-asyncio are deliberately not listed: the plugin pins an exact version
+# of each (today homeassistant 2026.10.4, which needs Python 3.14.2 or newer),
+# so a separate pin here only ever conflicts with it. mypy's settings are tuned
+# against that Home Assistant's type stubs, and bumping the plugin moves it.
+pytest-homeassistant-custom-component==0.13.375
+hypothesis==6.170.12
+aioresponses==0.7.9

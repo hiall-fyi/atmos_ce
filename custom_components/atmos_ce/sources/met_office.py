@@ -6,27 +6,40 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, tzinfo
 from email.utils import parsedate_to_datetime
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Final
 
 import aiohttp
 import voluptuous as vol
 from homeassistant.helpers import selector
-from homeassistant.util.dt import utcnow
+from homeassistant.util.dt import async_get_time_zone, utcnow
 
+from ..http_retry import require_shape
 from ..models import Alert, get_color_for_level, get_icon_for_alert_type, resolve_severity
 from ..source_base import (
     DEFAULT_FETCH_TIMEOUT,
     WeatherWarningSource,
     _as_list,
-    async_parse_xml,
+    async_parse_xml_checked,
     classify_by_keywords,
     common_config_schema,
     compute_alert_id,
+    find_colour_word,
+    raise_if_all_failed,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# the Met Office writes warning times as UK local clock time; assumed from one live warning (1e485c7c), UNVERIFIED
+_UK_TIME_ZONE: Final = "Europe/London"
+
+_MAX_WARNING_SPAN: Final = timedelta(days=31)
+
+_MONTH_NUMBERS: Final[dict[str, int]] = {
+    "Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4, "May": 5, "Jun": 6,
+    "Jul": 7, "Aug": 8, "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12,
+}
 
 
 class MetOfficeSource(WeatherWarningSource):
@@ -125,6 +138,12 @@ class MetOfficeSource(WeatherWarningSource):
         ("cold", ("cold",)),
     )
 
+    # the feed spells these two options differently from their label (checked against the Feb 2026 sample, not live)
+    _LOCAL_AUTHORITY_ALIASES: ClassVar[dict[str, tuple[str, ...]]] = {
+        "Bournemouth, Christchurch and Poole": ("Bournemouth Christchurch and Poole",),
+        "County Durham": ("Durham",),
+    }
+
     @property
     def source_id(self) -> str:
         """Return the unique identifier for this source."""
@@ -144,58 +163,34 @@ class MetOfficeSource(WeatherWarningSource):
         _LOGGER.debug("Fetching alerts from Met Office RSS feed")
 
         try:
-            response = await self._fetch_with_retry(
-                session, self.RSS_URL, timeout=DEFAULT_FETCH_TIMEOUT,
-            )
-            async with response:
-                if response.status != 200:
-                    _LOGGER.warning(
-                        "Met Office RSS returned HTTP %s, endpoint may be deprecated",
-                        response.status,
-                    )
-                    return []
-                xml_text = await response.text()
+            xml_text = await self._fetch_checked(session, self.RSS_URL, timeout=DEFAULT_FETCH_TIMEOUT)
 
             _LOGGER.debug("Successfully fetched Met Office RSS feed")
 
             # Parse XML off the event loop with entity expansion disabled.
-            try:
-                data = await async_parse_xml(xml_text)
-            except Exception as parse_err:
-                _LOGGER.error(
-                    "Failed to parse Met Office XML: %s. XML snippet: %s",
-                    parse_err,
-                    xml_text[:500] if xml_text else "(empty)",
-                )
-                raise
+            data = await async_parse_xml_checked(xml_text, "Met Office RSS")
 
-            if data is None or not isinstance(data, dict):
-                _LOGGER.warning("Empty or invalid XML from Met Office")
-                return []
+            rss: Any = data.get("rss")  # require_shape below proves it is a dict
+            require_shape(isinstance(rss, dict), "Met Office", "no rss element")
+            channel: Any = rss.get("channel")  # require_shape below proves it is a dict
+            require_shape(isinstance(channel, dict), "Met Office", "no channel element")
 
-            rss = data.get("rss", {})
-            if not isinstance(rss, dict):
-                _LOGGER.warning("Invalid RSS structure from Met Office")
-                return []
-
-            channel = rss.get("channel", {})
-            if channel is None or not isinstance(channel, dict):
-                _LOGGER.debug("Empty channel in RSS feed")
-                return []
-
-            items = channel.get("item", [])
-
-            # xmltodict returns a dict for a single item, a list otherwise.
-            items = _as_list(items)
+            # xmltodict returns a dict for a single item, a list otherwise; no item is the legal quiet answer.
+            items = _as_list(channel.get("item"))
 
             _LOGGER.debug("Found %d items in RSS feed", len(items))
 
+            zone = await async_get_time_zone(_UK_TIME_ZONE)
+            if zone is None:
+                raise ValueError("Europe/London time zone data is missing")
+
             alerts = []
             for item in items:
-                alert = self._parse_alert(item)
+                alert = self._parse_alert(item, zone)
                 if alert:
                     alerts.append(alert)
 
+            raise_if_all_failed(len(items), len(items) - len(alerts), "Met Office alerts")
             _LOGGER.debug("Parsed %d alerts from Met Office", len(alerts))
 
             # local_authorities match against locations; location_filters is
@@ -203,7 +198,11 @@ class MetOfficeSource(WeatherWarningSource):
             location_filters: list[str] = []
             local_authorities = config.get("local_authorities", [])
             if local_authorities:
-                location_filters.extend(local_authorities)
+                location_filters.extend(
+                    term
+                    for authority in local_authorities
+                    for term in self._LOCAL_AUTHORITY_ALIASES.get(authority, (authority,))
+                )
 
             custom_filters = config.get("location_filters", [])
             if isinstance(custom_filters, str):
@@ -243,7 +242,7 @@ class MetOfficeSource(WeatherWarningSource):
             )
             raise
 
-    def _parse_alert(self, item: dict) -> Alert | None:
+    def _parse_alert(self, item: dict, zone: tzinfo) -> Alert | None:
         """Parse a single Met Office alert from an RSS item."""
         try:
             title = item.get("title", "")
@@ -259,7 +258,7 @@ class MetOfficeSource(WeatherWarningSource):
             severity_name, level = resolve_severity(self._extract_severity(title))
             alert_type = self._extract_alert_type(title)
             locations = self._extract_locations(title, description)
-            start_time, end_time = self._extract_times(description, pub_date)
+            start_time, end_time = self._extract_times(description, pub_date, zone)
 
             alert = Alert(
                 alert_id=f"met_office_{compute_alert_id('met_office', title + pub_date)}",
@@ -302,15 +301,12 @@ class MetOfficeSource(WeatherWarningSource):
         not a real moderate/yellow warning the feed never actually sent.
         The caller resolves "" to "unknown"/1 via resolve_severity.
         """
-        title_lower = title.lower()
-        for severity in ("red", "amber", "yellow"):
-            if severity in title_lower:
-                return severity
-        return ""
+        return find_colour_word(title.split(" affecting ", 1)[0], ("red", "amber", "yellow")) or ""
 
     def _extract_alert_type(self, title: str) -> str:
-        """Extract alert type from title."""
-        return classify_by_keywords(title, self._CLASSIFY_TABLE)
+        """Extract alert type from the warning part of the title."""
+        # a place name after "affecting" can contain a type word (Leicestershire, Windsor, Snowdonia)
+        return classify_by_keywords(title.split(" affecting ", 1)[0], self._CLASSIFY_TABLE)
 
     def _extract_locations(self, title: str, description: str = "") -> list[str]:
         """Extract locations from title and description.
@@ -345,7 +341,7 @@ class MetOfficeSource(WeatherWarningSource):
 
         return ["UK"]
 
-    def _extract_times(self, description: str, pub_date: str) -> tuple[str, str]:
+    def _extract_times(self, description: str, pub_date: str, zone: tzinfo) -> tuple[str, str]:
         """Extract start and end times from description.
 
         Real format: "valid from 0500 Thu 05 Feb to 2100 Fri 06 Feb".
@@ -359,20 +355,37 @@ class MetOfficeSource(WeatherWarningSource):
                 end_str = match.group(2)    # "2100 Fri 06 Feb"
 
                 try:
-                    pub_dt = parsedate_to_datetime(pub_date)
-                    year = pub_dt.year
-                except Exception:
-                    year = utcnow().year
+                    reference = parsedate_to_datetime(pub_date)
+                    if reference.tzinfo is None:
+                        reference = reference.replace(tzinfo=UTC)
+                except (TypeError, ValueError):
+                    reference = utcnow()
 
-                # "0500 Thu 05 Feb" + year 2026 -> "2026-02-05T05:00:00+00:00"
-                start_time_str = self._parse_met_office_time(start_str, year)
-                end_time_str = self._parse_met_office_time(end_str, year)
+                # a warning starts within about six months of the feed date, so the nearest year wins across New Year
+                starts = [
+                    parsed
+                    for year in (reference.year - 1, reference.year, reference.year + 1)
+                    if (parsed := self._parse_met_office_time(start_str, year, zone, latest=False))
+                ]
+                start = min(starts, key=lambda candidate: abs(candidate - reference), default=None)
 
-                if start_time_str and end_time_str:
-                    return start_time_str, end_time_str
+                end = None
+                if start is not None:
+                    local_year = start.astimezone(zone).year
+                    for year in (local_year, local_year + 1):
+                        candidate = self._parse_met_office_time(end_str, year, zone, latest=True)
+                        # a warning never lasts over a month, so an end far past the start is an inverted text
+                        if candidate is not None and start <= candidate <= start + _MAX_WARNING_SPAN:
+                            end = candidate
+                            break
+
+                if start is not None and end is not None:
+                    return start.isoformat(), end.isoformat()
 
             except Exception as err:
                 _LOGGER.debug("Failed to parse validity period: %s", err)
+
+            _LOGGER.warning("Met Office validity period could not be read, using the feed date: %s", match.group(0))
 
         # Fallback: the feed occasionally uses phrasing the regex does
         # not cover (e.g. "valid from 12pm Friday to 6pm Saturday"). Use
@@ -383,12 +396,14 @@ class MetOfficeSource(WeatherWarningSource):
         try:
             start_dt = parsedate_to_datetime(pub_date)
             return start_dt.isoformat(), ""
-        except Exception:
+        except (TypeError, ValueError):
             # Final fallback: use current time as start, no end
             return utcnow().isoformat(), ""
 
-    def _parse_met_office_time(self, time_str: str, year: int) -> str | None:
-        """Parse a "0500 Thu 05 Feb" time string to ISO 8601."""
+    def _parse_met_office_time(
+        self, time_str: str, year: int, zone: tzinfo, *, latest: bool,
+    ) -> datetime | None:
+        """Parse a "0500 Thu 05 Feb" UK local time string to an aware UTC datetime."""
         try:
             parts = time_str.split()
             if len(parts) < 4:
@@ -401,15 +416,16 @@ class MetOfficeSource(WeatherWarningSource):
             hour = int(time_part[:2])
             minute = int(time_part[2:])
 
-            month_map = {
-                "Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4,
-                "May": 5, "Jun": 6, "Jul": 7, "Aug": 8,
-                "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12,
-            }
-            month_num = month_map.get(month, 1)
+            month_num = _MONTH_NUMBERS.get(month[:3].title())
+            if month_num is None:
+                return None
 
-            dt = datetime(year, month_num, int(day), hour, minute, tzinfo=UTC)
-            return dt.isoformat()
+            # changeover night: earliest instant for a start, latest for an end, so a warning is never late or hidden
+            instants = {
+                datetime(year, month_num, int(day), hour, minute, tzinfo=zone, fold=fold).astimezone(UTC)
+                for fold in (0, 1)
+            }
+            return max(instants) if latest else min(instants)
 
         except Exception as err:
             _LOGGER.debug("Failed to parse Met Office time '%s': %s", time_str, err)

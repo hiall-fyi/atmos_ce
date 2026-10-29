@@ -8,6 +8,7 @@ from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.core import HomeAssistant
 
 from . import AtmosCEConfigEntry
+from .http_retry import redact_url_query
 
 TO_REDACT = {
     "api_key",
@@ -22,6 +23,9 @@ TO_REDACT = {
     "counties",
     "provinces",
     "state",
+    "regions",
+    "local_authorities",
+    "countries",
     # Alert free-text fields, may embed location names, region IDs,
     # query-string user tokens, or PII lifted from upstream bulletins.
     "description",
@@ -54,8 +58,8 @@ async def async_get_config_entry_diagnostics(
             "has_warning_backend": coordinator.source.has_warning_backend,
             "last_update_success": coordinator.last_update_success,
             "last_exception": (
-                repr(coordinator.last_exception)
-                if coordinator.last_exception
+                f"{type(exc).__name__}: {redact_url_query(str(exc))}"
+                if (exc := coordinator.last_exception)
                 else None
             ),
         }

@@ -1,0 +1,21 @@
+name: "atmos_ce CodeQL config"
+
+queries:
+  - uses: security-and-quality
+
+# Excluded after reading the first run's alerts against the code. Each rule is
+# blind to a convention used here: imports under TYPE_CHECKING (no runtime
+# import cycle exists), a deliberate `X as X` re-export, `...` bodies on
+# abstract source methods, and constants that other modules consume. Ruff
+# already catches the genuine unused-import and unused-variable cases.
+query-filters:
+  - exclude:
+      id: py/cyclic-import
+  - exclude:
+      id: py/unsafe-cyclic-import
+  - exclude:
+      id: py/unused-global-variable
+  - exclude:
+      id: py/ineffectual-statement
+  - exclude:
+      id: py/unused-import

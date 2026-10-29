@@ -14,19 +14,21 @@ body:
       options:
         - label: I have searched the existing issues and discussions for this
           required: true
+        - label: I'm running the latest Atmos CE release shown in HACS
+          required: true
   - type: input
     id: atmos_ce_version
     attributes:
       label: Atmos CE version
       description: Copy it from the integration's device page rather than typing from memory.
-      placeholder: e.g. 1.1.0
+      placeholder: e.g. 2.1.0
     validations:
       required: true
   - type: input
     id: ha_version
     attributes:
       label: Home Assistant version
-      placeholder: e.g. 2026.7.4
+      placeholder: e.g. 2026.9.4
     validations:
       required: true
   - type: dropdown
@@ -98,7 +100,9 @@ body:
         on takes a config edit and a restart, see "Enable debug logging" under
         Troubleshooting in the README:
         https://github.com/hiall-fyi/atmos_ce#troubleshooting
-        Paste the relevant lines (filter the log by atmos_ce).
+        Paste the relevant lines (filter the log by atmos_ce). Atmos CE is built
+        not to write your coordinates into the log, but have a quick look
+        before you post it publicly.
       render: text
   - type: textarea
     id: repro

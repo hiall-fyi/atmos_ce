@@ -13,6 +13,7 @@ import voluptuous as vol
 from homeassistant.helpers import selector
 from homeassistant.util.dt import utcnow
 
+from ..http_retry import require_shape
 from ..models import (
     Alert,
     get_color_for_level,
@@ -26,6 +27,7 @@ from ..source_base import (
     classify_by_keywords,
     common_config_schema,
     compute_alert_id,
+    raise_if_all_failed,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -75,28 +77,35 @@ class NWSSource(WeatherWarningSource):
         try:
             params = self._build_area_params(config)
 
-            data = await self._fetch_json(
+            data = await self._fetch_checked(
                 session,
                 self.API_URL,
                 headers=self._HEADERS,
                 params=params or None,
                 timeout=DEFAULT_FETCH_TIMEOUT,
+                body="json",
             )
-            if data is None:
-                return []
 
             _LOGGER.debug("Successfully fetched NWS API response")
 
-            features = data.get("features", [])
+            features: Any = data.get("features")  # require_shape below proves it is a list
+            require_shape(isinstance(features, list), "NWS", "no features list")
 
-            _LOGGER.debug("Found %d features in NWS response", len(features))
+            # Dropped messages are not parse failures, so they are removed before counting.
+            operational = [f for f in features if self._is_operational(f)]
+
+            _LOGGER.debug(
+                "Found %d features in NWS response, dropped %d non-operational",
+                len(features), len(features) - len(operational),
+            )
 
             alerts = []
-            for feature in features:
+            for feature in operational:
                 alert = self._parse_alert(feature)
                 if alert:
                     alerts.append(alert)
 
+            raise_if_all_failed(len(operational), len(operational) - len(alerts), "NWS alerts")
             _LOGGER.debug("Parsed %d alerts from NWS", len(alerts))
 
             return self._apply_location_filter(alerts, config)
@@ -104,6 +113,15 @@ class NWSSource(WeatherWarningSource):
         except aiohttp.ClientError as err:
             _LOGGER.error("HTTP error fetching NWS alerts: %s", err)
             raise
+
+    @staticmethod
+    def _is_operational(feature: dict) -> bool:
+        """Keep real alerts; a missing status counts as Actual and a malformed feature reaches the parser."""
+        properties = feature.get("properties") if isinstance(feature, dict) else None
+        if not isinstance(properties, dict):
+            return True
+        is_actual = str(properties.get("status") or "Actual").casefold() == "actual"
+        return is_actual and str(properties.get("messageType") or "").casefold() != "cancel"
 
     def _parse_alert(self, feature: dict) -> Alert | None:
         """Parse a single NWS alert from an API feature."""

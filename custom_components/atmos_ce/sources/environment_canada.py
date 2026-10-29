@@ -9,13 +9,16 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from typing import Any, ClassVar
+from datetime import datetime, timedelta
+from typing import Any, ClassVar, NamedTuple
+from xml.parsers.expat import ExpatError
 
 import aiohttp
 import voluptuous as vol
 from homeassistant.helpers import selector
 from homeassistant.util.dt import utcnow
 
+from ..http_retry import UpstreamResponseError, UpstreamStatusError, require_shape
 from ..models import (
     Alert,
     get_color_for_level,
@@ -30,21 +33,43 @@ from ..source_base import (
     classify_by_keywords,
     common_config_schema,
     compute_alert_id,
+    raise_if_all_failed,
+    values_or_raise,
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+_ANCHOR = re.compile(r"""<a\s[^>]*?href\s*=\s*["']?([^"'\s>]+)[^>]*>(.*?)</a>""", re.IGNORECASE | re.DOTALL)
+
+
+def _has_entry_anchor(listing_html: str) -> bool:
+    """Return True when a listing has an anchor other than the sort links and Parent Directory."""
+    return any(
+        not href.startswith("?") and "parent directory" not in text.lower()
+        for href, text in _ANCHOR.findall(listing_html)
+    )
+
+
+class _CapResult(NamedTuple):
+    """One parsed CAP file: its id, the ids it supersedes, its alert if kept, and whether it was unparseable."""
+
+    identifier: str
+    superseded: frozenset[str]
+    alert: Alert | None
+    malformed: bool = False
 
 
 class EnvironmentCanadaSource(WeatherWarningSource):
     """Environment Canada weather warnings (Canada via CAP XML feeds).
 
     This source fetches weather warnings from the Environment Canada
-    Datamart CAP XML feeds. It discovers office codes from a directory
-    listing, then fetches individual CAP files concurrently with a
-    semaphore to avoid overwhelming the server.
+    Datamart CAP XML feeds. It walks the date, office and hour folders
+    of yesterday and today, then fetches individual CAP files concurrently
+    with a semaphore to avoid overwhelming the server.
     """
 
     BASE_URL = "https://dd.weather.gc.ca/today/alerts/cap"
+    ARCHIVE_URL: ClassVar[str] = "https://dd.weather.gc.ca/{day}/WXO-DD/alerts/cap/{day}/"
     _MAX_CONCURRENT_REQUESTS = 10
 
     # Supported provinces/territories
@@ -64,6 +89,23 @@ class EnvironmentCanadaSource(WeatherWarningSource):
         "YT": "Yukon",
     }
 
+    # SGC province prefix; all seen in the live archive except PE, the standard value (unverified live).
+    _SGC_PROVINCE_CODE: ClassVar[dict[str, str]] = {
+        "AB": "48",
+        "BC": "59",
+        "MB": "46",
+        "NB": "13",
+        "NL": "10",
+        "NS": "12",
+        "NT": "61",
+        "NU": "62",
+        "ON": "35",
+        "PE": "11",
+        "QC": "24",
+        "SK": "47",
+        "YT": "60",
+    }
+
     @property
     def source_id(self) -> str:
         """Return unique identifier for this source."""
@@ -74,73 +116,94 @@ class EnvironmentCanadaSource(WeatherWarningSource):
         """Return human-readable name."""
         return "Environment Canada"
 
+    @classmethod
+    def _day_urls(cls, now: datetime) -> list[str]:
+        """Return today's alias folder and yesterday's archive folder (UTC days)."""
+        return [
+            f"{cls.BASE_URL}/{now:%Y%m%d}/",
+            cls.ARCHIVE_URL.format(day=f"{now - timedelta(days=1):%Y%m%d}"),
+        ]
+
     async def fetch_alerts(
         self,
         session: aiohttp.ClientSession,
         config: dict[str, Any],
     ) -> list[Alert]:
-        """Fetch alerts from Environment Canada CAP XML feeds.
-
-        Discovers office codes from the daily directory listing, then
-        fetches all CAP files concurrently (bounded by a semaphore) to
-        avoid an N+1 sequential HTTP request storm.
-        """
+        """Fetch alerts from yesterday's and today's CAP folders, since an alert lives up to a day."""
         provinces = _as_list(config.get("provinces", ["ON"]))
 
-        today = utcnow().strftime("%Y%m%d")
-        base_url = f"{self.BASE_URL}/{today}/"
+        day_urls = self._day_urls(utcnow())
 
-        # Phase 1: Fetch directory listing to find office codes
-        try:
-            response = await self._fetch_with_retry(
-                session, base_url, timeout=DEFAULT_FETCH_TIMEOUT,
-            )
-            async with response:
-                if response.status != 200:
-                    _LOGGER.warning("Environment Canada returned HTTP %s", response.status)
-                    return []
-                html = await response.text()
-        except (aiohttp.ClientError, TimeoutError) as err:
-            _LOGGER.error("Error fetching Environment Canada directory: %s", err)
-            return []
-
-        office_codes = re.findall(r'href="([A-Z]{4})/"', html)
-        _LOGGER.debug("Found %d office codes: %s", len(office_codes), office_codes)
-
-        if not office_codes:
-            return []
-
-        # Phase 2: Fetch office listings concurrently to collect CAP URLs
         semaphore = asyncio.Semaphore(self._MAX_CONCURRENT_REQUESTS)
-        cap_urls: list[str] = []
 
-        async def _fetch_office_listing(office: str) -> list[str]:
-            """Fetch CAP file URLs from a single office listing."""
-            office_url = f"{base_url}{office}/00/"
+        async def _list_links(
+            url: str,
+            pattern: str,
+            suffix: str = "",
+            *,
+            missing_ok: bool = False,
+            allow_empty: bool = False,
+        ) -> list[str]:
+            """Return ``url`` + each link matching ``pattern`` (+ ``suffix``) in one directory listing."""
             async with semaphore:
                 try:
-                    resp = await self._fetch_with_retry(
-                        session, office_url, timeout=DEFAULT_FETCH_TIMEOUT,
-                    )
-                    async with resp:
-                        office_html = await resp.text()
-                    cap_files = re.findall(r'href="([^"]+\.cap)"', office_html)
-                    _LOGGER.debug("Office %s: %d CAP files", office, len(cap_files))
-                    return [f"{office_url}{cap_file}" for cap_file in cap_files]
-                except Exception as err:
-                    _LOGGER.warning("Error fetching office %s: %s", office, err)
-                    return []
+                    listing_html = await self._fetch_checked(session, url, timeout=DEFAULT_FETCH_TIMEOUT)
+                except UpstreamStatusError as err:
+                    if err.status == 404 and missing_ok:
+                        _LOGGER.debug("Environment Canada folder %s not found, no alerts there", url)
+                        return []
+                    raise
+            require_shape(
+                "Index of" in listing_html, "Environment Canada listing", f"{url} is not a directory listing",
+            )
+            links = re.findall(pattern, listing_html)
+            if not links and not allow_empty:
+                msg = f"Environment Canada listing {url} has no entries"
+                raise UpstreamResponseError(msg)
+            if not links and _has_entry_anchor(listing_html):
+                msg = f"Environment Canada listing {url} has entries this reader does not recognise"
+                raise UpstreamResponseError(msg)
+            return [f"{url}{link}{suffix}" for link in links]
 
-        office_results = await asyncio.gather(
-            *(_fetch_office_listing(office) for office in office_codes),
-            return_exceptions=True,
+        async def _cap_urls_for_day(day_url: str) -> list[str]:
+            """Return the CAP file URLs of one date folder (empty when the folder does not exist yet)."""
+            office_urls = await _list_links(
+                day_url, r'href="([A-Z]{4})/"', "/", missing_ok=True, allow_empty=True,
+            )
+            _LOGGER.debug("Found %d office folders under %s", len(office_urls), day_url)
+            office_results = await asyncio.gather(
+                *(_list_links(office_url, r'href="(\d{2})/"', "/") for office_url in office_urls),
+                return_exceptions=True,
+            )
+            hour_urls = [
+                url
+                for urls in values_or_raise(
+                    office_results, "Environment Canada office listing", allow_partial=False,
+                )
+                for url in urls
+            ]
+            hour_results = await asyncio.gather(
+                *(_list_links(hour_url, r'href="([^"]+\.cap)"') for hour_url in hour_urls),
+                return_exceptions=True,
+            )
+            return [
+                url
+                for urls in values_or_raise(
+                    hour_results, "Environment Canada hour listing", allow_partial=False,
+                )
+                for url in urls
+            ]
+
+        day_results = await asyncio.gather(
+            *(_cap_urls_for_day(day_url) for day_url in day_urls), return_exceptions=True,
         )
-
-        for result in office_results:
-            if isinstance(result, BaseException):
-                _LOGGER.warning("Office listing task failed: %s", result)
-                continue
-            cap_urls.extend(result)
+        cap_urls = [
+            url
+            for urls in values_or_raise(
+                day_results, "Environment Canada day listing", allow_partial=False,
+            )
+            for url in urls
+        ]
 
         _LOGGER.debug("Total CAP URLs to fetch: %d", len(cap_urls))
 
@@ -148,40 +211,67 @@ class EnvironmentCanadaSource(WeatherWarningSource):
             return []
 
         # Phase 3: Fetch and parse all CAP files concurrently
-        async def _fetch_cap(url: str) -> Alert | None:
+        async def _fetch_cap(url: str) -> _CapResult:
             """Fetch and parse a single CAP XML file."""
             async with semaphore:
+                xml_text = await self._fetch_checked(session, url, timeout=DEFAULT_FETCH_TIMEOUT)
                 try:
-                    cap_resp = await self._fetch_with_retry(
-                        session, url, timeout=DEFAULT_FETCH_TIMEOUT,
-                    )
-                    async with cap_resp:
-                        xml_text = await cap_resp.text()
                     # Offload XML parse so many concurrent CAP files don't
                     # serialize on the event loop.
                     data = await async_parse_xml(xml_text)
-                    return self._parse_alert(data, provinces)
-                except Exception as err:
-                    _LOGGER.warning("Error fetching CAP file %s: %s", url, err)
-                    return None
+                except ExpatError as err:
+                    # A bad 200 file stays in the folder all day, so one must not fail every poll.
+                    _LOGGER.warning("Skipped malformed CAP file %s: %s", url, err)
+                    return _CapResult("", frozenset(), None, malformed=True)
+                if not isinstance(data.get("alert"), dict):
+                    _LOGGER.warning("Skipped CAP file %s: XML document without an alert element", url)
+                    return _CapResult("", frozenset(), None, malformed=True)
+                identifier = self._cap_identifier(data)
+                references = self._cap_references(data)
+                try:
+                    alert = self._parse_alert(data, provinces, raise_errors=True)
+                except Exception as err:  # broad: one unusable file is skipped and counted, logged here
+                    _LOGGER.warning("Skipped unparseable CAP file %s: %s", url, err)
+                    return _CapResult(identifier, references, None, malformed=True)
+                return _CapResult(identifier, references, alert)
 
         cap_results = await asyncio.gather(
             *(_fetch_cap(url) for url in cap_urls),
             return_exceptions=True,
         )
+        results: list[_CapResult] = values_or_raise(
+            cap_results, "Environment Canada CAP fetch", allow_partial=False,
+        )
+        raise_if_all_failed(len(results), sum(r.malformed for r in results), "Environment Canada CAP parse")
 
-        all_alerts: list[Alert] = []
-        for result in cap_results:
-            if isinstance(result, BaseException):
-                _LOGGER.warning("CAP fetch task failed: %s", result)
-                continue
-            if result is not None:
-                all_alerts.append(result)
+        # References come from every message, so an ended message removes its target.
+        superseded = set().union(*(r.superseded for r in results))
+        all_alerts = [
+            r.alert for r in results
+            if r.alert is not None and r.identifier not in superseded
+        ]
 
         _LOGGER.debug("Fetched %d total alerts from Environment Canada", len(all_alerts))
         return self._apply_location_filter(all_alerts, config)
 
-    def _parse_alert(self, data: dict, provinces: list[str]) -> Alert | None:
+    @staticmethod
+    def _cap_identifier(data: dict) -> str:
+        """Return the CAP identifier of a parsed message, or an empty string."""
+        alert_data = data.get("alert") if isinstance(data, dict) else None
+        if not isinstance(alert_data, dict):
+            return ""
+        return str(alert_data.get("identifier") or "")
+
+    @staticmethod
+    def _cap_references(data: dict) -> frozenset[str]:
+        """Return the identifiers a message references (``sender,identifier,sent`` tokens)."""
+        alert_data = data.get("alert") if isinstance(data, dict) else None
+        if not isinstance(alert_data, dict):
+            return frozenset()
+        parts = (token.split(",") for token in str(alert_data.get("references") or "").split())
+        return frozenset(p[1] for p in parts if len(p) > 1)
+
+    def _parse_alert(self, data: dict, provinces: list[str], *, raise_errors: bool = False) -> Alert | None:
         """Parse a single Environment Canada CAP alert."""
         try:
             alert_data = data.get("alert", {})
@@ -200,7 +290,6 @@ class EnvironmentCanadaSource(WeatherWarningSource):
             sent = alert_data.get("sent", "")
             event = info.get("event", "Unknown")
             severity = info.get("severity", "Minor")
-            urgency = info.get("urgency", "Unknown")
             headline = info.get("headline", "")
             description = info.get("description", "")
             instruction = info.get("instruction", "")
@@ -209,21 +298,27 @@ class EnvironmentCanadaSource(WeatherWarningSource):
             expires = info.get("expires", "")
             web = info.get("web", "https://weather.gc.ca/")
 
-            area = info.get("area", {})
-            if isinstance(area, list):
-                area = area[0] if area else {}
+            if alert_data.get("msgType") == "Cancel" or info.get("responseType") == "AllClear":
+                return None
 
-            area_desc = area.get("areaDesc", "Unknown")
+            areas = [a for a in _as_list(info.get("area")) if isinstance(a, dict)]
 
             if provinces:
-                province_match = False
-                for prov_code in provinces:
-                    prov_name = self.SUPPORTED_PROVINCES.get(prov_code, "")
-                    if prov_name.lower() in area_desc.lower():
-                        province_match = True
-                        break
-
+                wanted = {
+                    self._SGC_PROVINCE_CODE[p] for p in provinces if p in self._SGC_PROVINCE_CODE
+                }
+                province_match = any(
+                    str(geocode.get("value", ""))[:2] in wanted
+                    for area in areas
+                    for geocode in _as_list(area.get("geocode"))
+                    if isinstance(geocode, dict)
+                    and str(geocode.get("valueName", "")).startswith("profile:CAP-CP:Location")
+                )
                 if not province_match:
+                    _LOGGER.debug(
+                        "Skipping Environment Canada alert %s: no area in provinces %s",
+                        alert_id, provinces,
+                    )
                     return None
 
             alert_name_param = None
@@ -234,8 +329,8 @@ class EnvironmentCanadaSource(WeatherWarningSource):
                     alert_name_param = param.get("value", "")
 
             alert_type = self._classify_event(event)
-            severity_name, level = self._map_severity(severity, urgency, alert_name_param)
-            locations = [area_desc] if area_desc else []
+            severity_name, level = self._map_severity(severity, alert_name_param)
+            locations = tuple(a["areaDesc"] for a in areas if a.get("areaDesc")) or ("Unknown",)
 
             full_description = description
             if instruction:
@@ -252,7 +347,7 @@ class EnvironmentCanadaSource(WeatherWarningSource):
                 # Falling back to onset made end_time == start_time, a
                 # zero-length window that could never register as active.
                 end_time=expires,
-                locations=tuple(locations),
+                locations=locations,
                 summary=headline,
                 description=full_description,
                 link=web,
@@ -260,7 +355,9 @@ class EnvironmentCanadaSource(WeatherWarningSource):
                 color=get_color_for_level(level),
             )
 
-        except Exception as err:
+        except Exception as err:  # one malformed CAP message must not drop the rest of the poll
+            if raise_errors:
+                raise
             _LOGGER.warning("Error parsing Environment Canada alert: %s", err)
             return None
 
@@ -293,15 +390,8 @@ class EnvironmentCanadaSource(WeatherWarningSource):
         return classify_by_keywords(event, cls._CLASSIFY_TABLE)
 
     @staticmethod
-    def _map_severity(severity: str, urgency: str, alert_name: str | None) -> tuple[str, int]:
-        """Map CAP severity and urgency to a colour-coded severity name and level.
-
-        The colour override from ``alert_name`` (EN or FR) always wins;
-        otherwise the shared :data:`source_base.SEVERITY_MAP` resolves the
-        CAP severity. ``urgency == "Immediate"`` escalates a borderline
-        level-2 or level-3 result by one tier, capped at 4, mirroring
-        how NOAA and Meteoalarm clients surface imminent alerts.
-        """
+    def _map_severity(severity: str, alert_name: str | None) -> tuple[str, int]:
+        """Return the colour word in ``alert_name`` (EN or FR) if any, else the CAP severity."""
         if alert_name:
             alert_name_lower = alert_name.lower()
             if "red" in alert_name_lower or "rouge" in alert_name_lower:
@@ -311,15 +401,7 @@ class EnvironmentCanadaSource(WeatherWarningSource):
             if "yellow" in alert_name_lower or "jaune" in alert_name_lower:
                 return "yellow", 2
 
-        severity_name, level = resolve_severity(severity)
-
-        # Urgency escalation: "Immediate" bumps borderline alerts up one
-        # tier; "Expected" / "Future" / "Past" are left unchanged.
-        if urgency == "Immediate" and 2 <= level <= 3:
-            level += 1
-            severity_name = {3: "orange", 4: "red"}[level]
-
-        return severity_name, level
+        return resolve_severity(severity)
 
     async def validate_config(
         self,
@@ -334,9 +416,12 @@ class EnvironmentCanadaSource(WeatherWarningSource):
         if not valid:
             return False, error
 
-        today = utcnow().strftime("%Y%m%d")
-        url = f"{self.BASE_URL}/{today}/"
-        return await self._validate_http_access(session, url)
+        # Today's folder appears with the day's first file; yesterday's covers the hours before.
+        for url in self._day_urls(utcnow()):
+            valid, error = await self._validate_http_access(session, url)
+            if valid:
+                return True, None
+        return False, error
 
     def get_config_schema(self) -> vol.Schema:
         """Return configuration schema for Environment Canada."""

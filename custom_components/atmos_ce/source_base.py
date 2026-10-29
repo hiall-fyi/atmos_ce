@@ -4,8 +4,10 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
+import re
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Literal, overload
+from xml.parsers.expat import ExpatError
 
 import aiohttp
 import voluptuous as vol
@@ -20,7 +22,12 @@ from .const import (
 )
 from .const import SEVERITY_MAP as SEVERITY_MAP  # noqa: PLC0414 (re-export for source plugins)
 from .helpers import filter_by_location
-from .http_retry import DEFAULT_FETCH_TIMEOUT, async_fetch_with_retry
+from .http_retry import (
+    DEFAULT_FETCH_TIMEOUT,
+    UpstreamResponseError,
+    async_fetch_checked,
+    async_fetch_with_retry,
+)
 from .models import Alert
 
 _LOGGER = logging.getLogger(__name__)
@@ -87,6 +94,30 @@ def classify_by_keywords(
     return default
 
 
+def find_colour_word(text: str, colours: tuple[str, ...]) -> str | None:
+    """Return the first colour in *colours* that occurs in *text* as a whole word."""
+    for colour in colours:
+        if re.search(rf"\b{re.escape(colour)}\b", text, re.IGNORECASE):
+            return colour
+    return None
+
+
+def values_or_raise(results: list[Any], label: str, *, allow_partial: bool = True) -> list[Any]:
+    """Drop failed gather entries; re-raise the first failure if all failed, or if any failed and not allow_partial."""
+    failures = [r for r in results if isinstance(r, BaseException)]
+    for failure in failures:
+        _LOGGER.warning("%s failed: %s", label, failure)
+    if failures and (not allow_partial or len(failures) == len(results)):
+        raise failures[0]
+    return [r for r in results if not isinstance(r, BaseException)]
+
+
+def raise_if_all_failed(total: int, failed: int, label: str) -> None:
+    """Raise when items were present and every one failed to parse (some skipped is fine)."""
+    if total > 0 and failed == total:
+        raise UpstreamResponseError(f"{label}: all {total} items failed to parse")
+
+
 def _as_list(value: Any) -> list[Any]:  # noqa: ANN401 (accepts xmltodict's dict|list|str|None)
     """Coerce a value to a list, following the xmltodict/Atom convention.
 
@@ -144,6 +175,14 @@ async def async_parse_xml(xml_input: str | bytes) -> dict[str, Any]:
         None,
         lambda: xmltodict.parse(xml_input, disable_entities=True),
     )
+
+
+async def async_parse_xml_checked(xml_text: str, label: str) -> dict[str, Any]:
+    """Parse XML like ``async_parse_xml``, turning a parse error into a recoverable ``UpstreamResponseError``."""
+    try:
+        return await async_parse_xml(xml_text)
+    except ExpatError as err:
+        raise UpstreamResponseError(f"{label} is not valid XML: {err}") from err
 
 
 def common_config_schema(
@@ -333,6 +372,69 @@ class WeatherWarningSource(ABC):
             logger=_LOGGER,
         )
 
+    @overload
+    async def _fetch_checked(
+        self,
+        session: aiohttp.ClientSession,
+        url: str,
+        *,
+        params: dict[str, Any] | None = ...,
+        headers: dict[str, str] | None = ...,
+        timeout: aiohttp.ClientTimeout = ...,
+        body: Literal["text"] = ...,
+        max_bytes: int | None = ...,
+    ) -> str: ...
+
+    @overload
+    async def _fetch_checked(
+        self,
+        session: aiohttp.ClientSession,
+        url: str,
+        *,
+        params: dict[str, Any] | None = ...,
+        headers: dict[str, str] | None = ...,
+        timeout: aiohttp.ClientTimeout = ...,
+        body: Literal["json"],
+        max_bytes: int | None = ...,
+    ) -> dict[str, Any]: ...
+
+    @overload
+    async def _fetch_checked(
+        self,
+        session: aiohttp.ClientSession,
+        url: str,
+        *,
+        params: dict[str, Any] | None = ...,
+        headers: dict[str, str] | None = ...,
+        timeout: aiohttp.ClientTimeout = ...,
+        body: Literal["bytes"],
+        max_bytes: int,
+    ) -> bytes: ...
+
+    async def _fetch_checked(
+        self,
+        session: aiohttp.ClientSession,
+        url: str,
+        *,
+        params: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
+        timeout: aiohttp.ClientTimeout = DEFAULT_FETCH_TIMEOUT,
+        body: Literal["text", "json", "bytes"] = "text",
+        max_bytes: int | None = None,
+    ) -> str | dict[str, Any] | bytes:
+        """GET with retry and return a usable 200 body, else raise ``UpstreamResponseError``."""
+        return await async_fetch_checked(
+            session,
+            url,
+            params=params,
+            headers=headers,
+            timeout=timeout,
+            source_label=self.source_name,
+            logger=_LOGGER,
+            body=body,
+            max_bytes=max_bytes,
+        )
+
     def _apply_location_filter(
         self, alerts: list[Alert], config: dict[str, Any],
     ) -> list[Alert]:
@@ -350,45 +452,6 @@ class WeatherWarningSource(ABC):
         if location_filters:
             return filter_by_location(alerts, location_filters)
         return alerts
-
-    async def _fetch_json(
-        self,
-        session: aiohttp.ClientSession,
-        url: str,
-        *,
-        params: dict[str, Any] | None = None,
-        headers: dict[str, str] | None = None,
-        timeout: aiohttp.ClientTimeout = DEFAULT_FETCH_TIMEOUT,
-    ) -> dict[str, Any] | None:
-        """Fetch a URL and decode the JSON body, or None on a non-200 status.
-
-        Wraps the ``_fetch_with_retry`` → status-check → ``response.json()``
-        boilerplate that single-request JSON sources repeat. Returns None
-        (after logging a warning) when the server answers non-200 so the
-        caller can treat it as "no alerts this cycle". Transient 403/429/5xx
-        and auth failures are handled inside ``_fetch_with_retry``.
-
-        Args:
-            session: aiohttp client session.
-            url: Request URL.
-            params: Optional query parameters.
-            headers: Optional request headers.
-            timeout: Request timeout (per attempt).
-
-        Returns:
-            The decoded JSON dict, or None on a non-200 response.
-
-        """
-        response = await self._fetch_with_retry(
-            session, url, params=params, headers=headers, timeout=timeout,
-        )
-        async with response:
-            if response.status != 200:
-                _LOGGER.warning(
-                    "%s returned HTTP %s", self.source_name, response.status,
-                )
-                return None
-            return await response.json()
 
     @staticmethod
     def _validate_list_selection(
@@ -426,8 +489,10 @@ class WeatherWarningSource(ABC):
             unsupported_str = ", ".join(invalid)
             return (
                 False,
-                f"Unsupported {plural}: {unsupported_str}. "
-                f"Must be one of: {supported_str}",
+                (
+                    f"Unsupported {plural}: {unsupported_str}. "
+                    f"Must be one of: {supported_str}"
+                ),
             )
         return True, None
 

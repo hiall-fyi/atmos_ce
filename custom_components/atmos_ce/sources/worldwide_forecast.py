@@ -9,7 +9,6 @@ Internally powered by Open-Meteo via ``OpenMeteoBackend``.
 """
 from __future__ import annotations
 
-import logging
 from typing import Any
 
 import aiohttp
@@ -24,8 +23,6 @@ from ..const import (
 from ..forecast_backend import OpenMeteoBackend
 from ..models import Alert
 from ..source_base import WeatherWarningSource
-
-_LOGGER = logging.getLogger(__name__)
 
 # Shared backend instance for config validation.
 _BACKEND = OpenMeteoBackend()

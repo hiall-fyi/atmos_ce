@@ -6,6 +6,49 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [2.1.0] - 2026-10-29
+
+**If an automation treats a quiet Active Alert sensor as "all clear"**, check what it does when the sensors say `unavailable`. When a weather service errors, times out or sends back a page the integration can't read, the alert sensors now go `unavailable` instead of reporting no alerts. They come back by themselves at the next successful refresh. Forecasts and air quality keep their own data.
+
+Two other changes you may notice. Environment Canada and DWD warning levels can differ from before, because the severity is now read from what those services actually send (details below). And Met Office warning times are now read as UK local time, so a warning issued during British Summer Time may start and end an hour earlier than it did. That reading is based on the one summer-time warning seen so far and will be re-checked when the clocks go forward in March 2027.
+
+### Bug fixes
+
+- **Fixed: a failed fetch looked like "no alerts".** Environment Canada, Meteoalarm, DWD, Met Office, NWS and CWA Taiwan all treated an error page, a missing feed or an empty answer as "nothing to report". They now raise it, and the alert sensors go `unavailable` until the next refresh works. A feed that answers properly with no warnings still means no alerts.
+
+- **Fixed: Environment Canada warnings disappeared for hours around midnight UTC.** The integration only read today's folder, which is empty for the first part of each UTC day, so warnings still in force vanished. It now reads yesterday's folder too, covers every hour folder, drops warnings that have ended or been replaced, and matches provinces by the official geocode. One failed listing now fails the whole refresh instead of quietly blanking a province.
+
+- **Fixed: Environment Canada advisories were rated higher than their colour.** A product with no colour could be pushed up a level by its urgency field. It no longer is.
+
+- **Fixed: DWD warnings did not take their severity from DWD's colour.** DWD sends the colour as three numbers (red, green, blue). The integration was looking for a different format, so the colour was never used and the level came from DWD's separate severity field instead. It also stopped reading large responses part-way through when the server sent them in chunks.
+
+- **Fixed: a colour word inside a place name changed a warning's level.** Meteoalarm and Met Office titles are now checked for the colour as a whole word, and only in the warning part of the title, so an area name can't decide it. Meteoalarm also takes the alert type from the title first, which fixes about a fifth of warnings that showed an unknown type.
+
+- **Fixed: NWS test and cancelled messages showed as active alerts.** Messages marked Test or Exercise, and Cancel messages, are now ignored.
+
+- **Fixed: Met Office warnings across New Year or with an unusual date.** A warning running from 31 December into January, or naming a month the integration didn't recognise, could end up with the wrong dates. Year-end warnings are now read correctly. If the dates can't be read, or the end comes before the start, the warning falls back to the feed's own date with no end time.
+
+- **Fixed: Met Office local authority names.** "Bournemouth, Christchurch and Poole" and "County Durham" now match their warnings. An area name such as Windsor or Leicestershire no longer changes the warning type.
+
+- **Fixed: a blank location filter hid your local authority choice.** The default empty filter matched every location, so choosing a local authority still showed every warning in the region. Empty entries are now ignored, and several places can be entered separated by commas.
+
+- **Fixed: Open-Meteo errors were shown as forecast data.** An error reply from Open-Meteo (a bad request or a rate limit, for example) used to come through as empty values. It now counts as a failed fetch.
+
+- **Fixed: daily forecast dates were an hour out after the clocks changed.** For the days after a daylight saving change, the date could land on the previous day. Daily dates are now read in the forecast location's own time zone.
+
+- **Fixed: reconfiguring Worldwide Forecast reset its location.** Saving the options now keeps the forecast location you chose.
+
+- **Fixed: the weather entity didn't always update after a refresh.** Forecast updates are now pushed to the weather entity every time data refreshes.
+
+- **Fixed: your home coordinates could end up in the logs.** A connection error or timeout could print the full request address, including your latitude and longitude, and keys could appear in some error text. Addresses, keys and coordinates are now stripped from errors and from the diagnostics download, and the debug log no longer prints your location when it fetches a forecast or air quality.
+
+### Improvements
+
+- **Long alert lists no longer overflow Home Assistant's history.** With a busy day on NWS or DWD, the alert attributes could be hundreds of kilobytes, which the history database refuses. They are now kept under 12 KB: only the first 20 places are kept (`locations_count` has the full number), long descriptions in `all_alerts` are cut, and `attributes_truncated` is set to `true` when anything was shortened. The alerts themselves are unchanged.
+
+- **Environment Canada reads more files per refresh.** To cover the hour folders it now makes roughly 60 to 70 requests a refresh (most are small). If that is too much, lengthen the update interval.
+
+
 ## [2.0.0] - 2026-09-05
 
 **If you have an automation or template matching the literal text `"None"` on the Active Alert or Upcoming Alert sensors**, switch it to check for the `unknown` state instead. With no alert, both sensors now report the standard Unknown state rather than the word "None".

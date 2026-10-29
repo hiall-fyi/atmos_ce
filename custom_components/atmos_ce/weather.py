@@ -20,7 +20,7 @@ from homeassistant.const import (
     UnitOfSpeed,
     UnitOfTemperature,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import ATTRIBUTION_OPEN_METEO
@@ -114,6 +114,17 @@ class AtmosWeatherEntity(AtmosBaseEntity, WeatherEntity):
         super().__init__(coordinator, entry_id)
         self._attr_unique_id = f"{entry_id}_weather"
         self._attr_attribution = ATTRIBUTION_OPEN_METEO
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Write state, then push the forecast to websocket subscribers."""
+        super()._handle_coordinator_update()
+        if entry := self.coordinator.config_entry:
+            entry.async_create_task(self.hass, self.async_update_listeners(None))
+            return
+        self.hass.async_create_task(
+            self.async_update_listeners(None), f"{self.coordinator.name}",
+        )
 
     @property
     def available(self) -> bool:

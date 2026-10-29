@@ -1,19 +1,28 @@
 """Alert-based sensor entities (active / upcoming / count)."""
 from __future__ import annotations
 
+import logging
 from dataclasses import asdict
-from typing import Any
+from typing import Any, Final
 
 from homeassistant.components.sensor import (
     SensorEntity,
     SensorStateClass,
 )
 from homeassistant.const import EntityCategory
+from homeassistant.helpers.json import json_bytes
 
 from ..coordinator import UnifiedCoordinator
-from ..entity import AtmosBaseEntity
+from ..entity import AtmosAlertEntity
 from ..helpers import calculate_progress, seconds_until
 from ..models import Alert
+
+_LOGGER = logging.getLogger(__name__)
+
+_MAX_ATTR_LOCATIONS: Final = 20
+_MAX_LIST_DESCRIPTION: Final = 500
+# the recorder keeps {} for attributes above 16,384 bytes, so stay well under it
+_ATTRIBUTE_BYTE_BUDGET: Final = 12_000
 
 # Sentinel values surfaced when there's no alert. Declared once so it
 # never drifts from Alert's field set.
@@ -71,7 +80,58 @@ def _alert_list_attributes(
     ]
 
 
-class _BaseAlertSensor(AtmosBaseEntity, SensorEntity):
+def _encoded_size(value: dict[str, Any]) -> int:
+    """Return the JSON size in bytes, measured the way the recorder measures it."""
+    return len(json_bytes(value))
+
+
+def _limit_locations(attrs: dict[str, Any]) -> bool:
+    """Keep the first places of ``attrs["locations"]`` and record the full count; True when cut."""
+    locations = attrs["locations"]
+    if len(locations) <= _MAX_ATTR_LOCATIONS:
+        return False
+    attrs.setdefault("locations_count", len(locations))
+    attrs["locations"] = locations[:_MAX_ATTR_LOCATIONS]
+    return True
+
+
+def _drop_lowest_entries(attrs: dict[str, Any]) -> None:
+    """Keep the first entry and as many of the highest-level others as fit; record the true total."""
+    items = attrs["all_alerts"]
+    attrs["all_alerts_count"] = len(items)
+    attrs["all_alerts"] = []
+    room = _ATTRIBUTE_BYTE_BUDGET - _encoded_size(attrs) - _encoded_size(items[0]) - 1
+    kept = {0}
+    for index in sorted(range(1, len(items)), key=lambda i: (-items[i]["level"], i)):
+        cost = _encoded_size(items[index]) + 1  # the comma
+        if cost > room:
+            break
+        kept.add(index)
+        room -= cost
+    attrs["all_alerts"] = [items[i] for i in sorted(kept)]
+
+
+def _bound_attributes(attrs: dict[str, Any]) -> dict[str, Any]:
+    """Cap places and list descriptions, then enforce the byte budget; the Alert objects keep everything."""
+    items: list[dict[str, Any]] = attrs.get("all_alerts", [])
+    truncated = _limit_locations(attrs)
+    for item in items:
+        truncated |= _limit_locations(item)
+        if len(item["description"] or "") > _MAX_LIST_DESCRIPTION:
+            item["description"] = item["description"][:_MAX_LIST_DESCRIPTION]
+            truncated = True
+    if truncated:
+        attrs["attributes_truncated"] = True
+    if _encoded_size(attrs) > _ATTRIBUTE_BYTE_BUDGET:
+        attrs["attributes_truncated"] = True
+        for item in items:
+            item["description"] = ""
+        if len(items) > 1 and _encoded_size(attrs) > _ATTRIBUTE_BYTE_BUDGET:
+            _drop_lowest_entries(attrs)
+    return attrs
+
+
+class _BaseAlertSensor(AtmosAlertEntity, SensorEntity):
     """Base class for alert sensors with shared initialisation logic."""
 
     def __init__(
@@ -88,6 +148,20 @@ class _BaseAlertSensor(AtmosBaseEntity, SensorEntity):
         self._attr_translation_key = translation_key
         self._attr_unique_id = f"{entry_id}_{translation_key}"
         self._attr_attribution = f"Data provided by {coordinator.source.source_name}"
+        self._attributes_truncated = False
+
+    def _bounded(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        """Bound the attributes and log once when they start being shortened."""
+        _bound_attributes(attrs)
+        truncated = bool(attrs.get("attributes_truncated"))
+        if truncated and not self._attributes_truncated:
+            _LOGGER.info(
+                "%s: alert attributes are shortened to stay under the Home Assistant history limit, "
+                "the alerts themselves are unchanged",
+                self.entity_id,
+            )
+        self._attributes_truncated = truncated
+        return attrs
 
 
 class ActiveAlertSensor(_BaseAlertSensor):
@@ -131,7 +205,7 @@ class ActiveAlertSensor(_BaseAlertSensor):
         upcoming = data.alerts.upcoming_alerts if data else []
         attrs = _alert_attributes(active[0] if active else None)
         attrs["all_alerts"] = _alert_list_attributes(active, upcoming)
-        return attrs
+        return self._bounded(attrs)
 
 
 class UpcomingAlertSensor(_BaseAlertSensor):
@@ -174,7 +248,7 @@ class UpcomingAlertSensor(_BaseAlertSensor):
         attrs = _alert_attributes(upcoming[0] if upcoming else None)
         if upcoming:
             attrs["progress"] = 0.0
-        return attrs
+        return self._bounded(attrs)
 
 
 class AlertCountSensor(_BaseAlertSensor):

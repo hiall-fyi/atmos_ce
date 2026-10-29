@@ -14,6 +14,7 @@ import aiohttp
 import voluptuous as vol
 from homeassistant.helpers import selector
 
+from ..http_retry import require_shape
 from ..models import (
     Alert,
     get_color_for_level,
@@ -25,10 +26,13 @@ from ..source_base import (
     SEVERITY_MAP,
     WeatherWarningSource,
     _as_list,
-    async_parse_xml,
+    async_parse_xml_checked,
     classify_by_keywords,
     common_config_schema,
     compute_alert_id,
+    find_colour_word,
+    raise_if_all_failed,
+    values_or_raise,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -116,73 +120,60 @@ class MeteoalarmSource(WeatherWarningSource):
         async def _fetch_country(country: str) -> list[Alert]:
             """Fetch alerts for a single country."""
             async with semaphore:
-                try:
-                    url = self.FEED_URL_TEMPLATE.format(country=country)
+                url = self.FEED_URL_TEMPLATE.format(country=country)
 
-                    response = await self._fetch_with_retry(
-                        session, url, timeout=DEFAULT_FETCH_TIMEOUT,
+                xml_text = await self._fetch_checked(session, url, timeout=DEFAULT_FETCH_TIMEOUT)
+
+                # Parse Atom feed off the event loop with entity expansion disabled.
+                data = await async_parse_xml_checked(xml_text, f"Meteoalarm {country} feed")
+                feed: Any = data.get("feed")  # require_shape below proves it is a dict
+                require_shape(isinstance(feed, dict), f"Meteoalarm {country}", "no feed element")
+                entries = _as_list(feed.get("entry"))
+
+                # Parse each entry. A single malformed entry must not
+                # drop the rest of the country's alerts, the
+                # meteoalarm feed mixes CAP and bespoke fields and
+                # occasionally emits garbage for one entry while
+                # surrounding entries are valid.
+                alerts: list[Alert] = []
+                skipped = 0
+                for entry in entries:
+                    try:
+                        alert = self._parse_alert(entry, country)
+                        if alert:
+                            alerts.append(alert)
+                    except Exception as err:
+                        skipped += 1
+                        _LOGGER.warning(
+                            "Skipped Meteoalarm entry from %s: %s",
+                            country, err,
+                        )
+                        continue
+
+                raise_if_all_failed(len(entries), skipped, f"Meteoalarm {country}")
+                if skipped:
+                    _LOGGER.info(
+                        "Meteoalarm %s: parsed %d alerts, skipped %d "
+                        "malformed entries",
+                        country, len(alerts), skipped,
                     )
-                    async with response:
-                        if response.status != 200:
-                            _LOGGER.warning("MeteoAlarm %s returned HTTP %s", country, response.status)
-                            return []
-                        xml_text = await response.text()
-
-                    # Parse Atom feed off the event loop with entity expansion disabled.
-                    data = await async_parse_xml(xml_text)
-                    feed = data.get("feed", {})
-                    entries = feed.get("entry", [])
-
-                    entries = _as_list(entries)
-
-                    # Parse each entry. A single malformed entry must not
-                    # drop the rest of the country's alerts, the
-                    # meteoalarm feed mixes CAP and bespoke fields and
-                    # occasionally emits garbage for one entry while
-                    # surrounding entries are valid.
-                    alerts: list[Alert] = []
-                    skipped = 0
-                    for entry in entries:
-                        try:
-                            alert = self._parse_alert(entry, country)
-                            if alert:
-                                alerts.append(alert)
-                        except Exception as err:
-                            skipped += 1
-                            _LOGGER.warning(
-                                "Skipped Meteoalarm entry from %s: %s",
-                                country, err,
-                            )
-                            continue
-
-                    if skipped:
-                        _LOGGER.info(
-                            "Meteoalarm %s: parsed %d alerts, skipped %d "
-                            "malformed entries",
-                            country, len(alerts), skipped,
-                        )
-                    else:
-                        _LOGGER.debug(
-                            "Fetched %d alerts from Meteoalarm (%s)",
-                            len(alerts), country,
-                        )
-                    return alerts
-
-                except Exception as err:
-                    _LOGGER.error("Error fetching Meteoalarm feed for %s: %s", country, err)
-                    return []
+                else:
+                    _LOGGER.debug(
+                        "Fetched %d alerts from Meteoalarm (%s)",
+                        len(alerts), country,
+                    )
+                return alerts
 
         results = await asyncio.gather(
             *(_fetch_country(country) for country in countries),
             return_exceptions=True,
         )
 
-        all_alerts: list[Alert] = []
-        for result in results:
-            if isinstance(result, BaseException):
-                _LOGGER.warning("Meteoalarm country fetch failed: %s", result)
-                continue
-            all_alerts.extend(result)
+        all_alerts: list[Alert] = [
+            alert
+            for alerts in values_or_raise(results, "Meteoalarm country fetch", allow_partial=False)
+            for alert in alerts
+        ]
 
         _LOGGER.debug("Fetched %d total alerts from Meteoalarm (%d countries)", len(all_alerts), len(countries))
         return self._apply_location_filter(all_alerts, config)
@@ -210,7 +201,11 @@ class MeteoalarmSource(WeatherWarningSource):
                 cap_link = link.get("@href", "")
                 break
 
-        alert_type = self._classify_event(event)
+        warning_part = title.split(" issued for ", 1)[0]
+        # The title type word is Meteoalarm's own vocabulary, cap:event is the issuing country's free text.
+        alert_type = self._classify_event(warning_part) if " issued for " in title else "unknown"
+        if alert_type == "unknown":
+            alert_type = self._classify_event(event)
 
         # Severity precedence: title colour keyword wins over CAP severity
         # (Meteoalarm titles reliably contain Yellow/Orange/Red; CAP
@@ -219,12 +214,10 @@ class MeteoalarmSource(WeatherWarningSource):
         # which matches the shared SEVERITY_MAP.
         severity_name = "yellow"
         level = SEVERITY_MAP["yellow"]
-        title_lower = title.lower()
-        for colour in ("red", "orange", "yellow"):
-            if colour in title_lower:
-                severity_name = colour
-                level = SEVERITY_MAP[colour]
-                break
+        colour = find_colour_word(warning_part, ("red", "orange", "yellow"))
+        if colour is not None:
+            severity_name = colour
+            level = SEVERITY_MAP[colour]
         else:
             # No colour in the title, so use the CAP severity. Keep the
             # yellow default when it is absent or unrecognised: Meteoalarm

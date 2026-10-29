@@ -11,6 +11,7 @@ from homeassistant.components.sensor import (
     SensorEntity,
     SensorEntityDescription,
 )
+from homeassistant.core import callback
 from homeassistant.util.dt import utcnow
 
 from ..const import (
@@ -162,6 +163,7 @@ class PressureTrendSensor(ForecastCurrentMixin, AtmosBaseEntity, SensorEntity):
         if self.coordinator.data and self.coordinator.data.forecast:
             self._schedule_save()
 
+    @callback
     def _handle_coordinator_update(self) -> None:
         """Handle coordinator update, schedule async pressure save."""
         super()._handle_coordinator_update()

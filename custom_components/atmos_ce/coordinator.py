@@ -18,7 +18,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util.dt import utcnow
 
-from .forecast_backend import OpenMeteoBackend
+from .forecast_backend import OpenMeteoBackend, async_resolve_response_zone
 from .forecast_types import AirQualityData, ForecastPayload
 from .helpers import get_active_alerts, get_upcoming_alerts
 from .models import Alert
@@ -39,12 +39,13 @@ class AlertData:
 
 @dataclass(frozen=True)
 class UnifiedData:
-    """Immutable snapshot of one update cycle. None = disabled or fetch failed."""
+    """Immutable snapshot of one update cycle. None = disabled or fetch failed; warnings_failed = alerts unknown."""
 
     alerts: AlertData = field(default_factory=AlertData)
     forecast: ForecastPayload | None = None
     air_quality: AirQualityData | None = None
     astro: dict[str, object] = field(default_factory=dict)
+    warnings_failed: bool = False
 
 
 # Errors `_dispatch_fetches` captures so a single-backend failure can still
@@ -53,6 +54,7 @@ class UnifiedData:
 _RECOVERABLE_ERRORS = (
     aiohttp.ClientConnectionError,
     aiohttp.ClientResponseError,
+    aiohttp.ClientPayloadError,
     TimeoutError,
     ValueError,
     KeyError,
@@ -95,12 +97,7 @@ class UnifiedCoordinator(DataUpdateCoordinator[UnifiedData]):
         resolved = dict(config)
         resolved.setdefault("forecast_latitude", hass.config.latitude)
         resolved.setdefault("forecast_longitude", hass.config.longitude)
-        _LOGGER.debug(
-            "Resolved config: source=%s, forecast_location=(%s, %s)",
-            resolved.get("source_id", "unknown"),
-            resolved.get("forecast_latitude"),
-            resolved.get("forecast_longitude"),
-        )
+        _LOGGER.debug("Resolved config: source=%s", resolved.get("source_id", "unknown"))
         return resolved
 
     async def _async_update_data(self) -> UnifiedData:
@@ -156,6 +153,10 @@ class UnifiedCoordinator(DataUpdateCoordinator[UnifiedData]):
             )
 
         if warn_failed:
+            _LOGGER.warning(
+                "Warnings backend failed for %s, alert entities unavailable: %s",
+                self.source.source_name, warn_result,
+            )
             alerts = AlertData()
         else:
             assert isinstance(warn_result, AlertData)  # noqa: S101 (refines union type for mypy)
@@ -164,6 +165,10 @@ class UnifiedCoordinator(DataUpdateCoordinator[UnifiedData]):
         aq_data: AirQualityData | None
         astro: dict[str, object]
         if fc_failed:
+            _LOGGER.warning(
+                "Forecast backend failed for %s, forecast entities unavailable: %s",
+                self.source.source_name, fc_result,
+            )
             forecast_data, aq_data, astro = None, None, {}
         else:
             assert isinstance(fc_result, tuple)  # noqa: S101 (refines union type for mypy)
@@ -185,6 +190,7 @@ class UnifiedCoordinator(DataUpdateCoordinator[UnifiedData]):
             forecast=forecast_data,
             air_quality=aq_data,
             astro=astro,
+            warnings_failed=warn_failed,
         )
 
     async def _save_failed_fetch(self) -> None:
@@ -272,17 +278,16 @@ class UnifiedCoordinator(DataUpdateCoordinator[UnifiedData]):
 
         forecast_data: ForecastPayload | None = None
         if fetch_forecast:
-            _LOGGER.debug(
-                "Fetching forecast from Open-Meteo (lat=%s, lon=%s)", lat, lon,
-            )
+            _LOGGER.debug("Fetching forecast from Open-Meteo")
             raw = await self.forecast_backend.fetch_forecast(
                 self.session, lat, lon,
             )
+            zone = await async_resolve_response_zone(raw)
             try:
                 forecast_data = {
                     "current": self.forecast_backend.parse_current_conditions(raw),
                     "hourly": self.forecast_backend.parse_hourly_forecast(raw),
-                    "daily": self.forecast_backend.parse_daily_forecast(raw),
+                    "daily": self.forecast_backend.parse_daily_forecast(raw, zone=zone),
                 }
             except KeyError:
                 # The parsers tolerate missing upstream fields, so a

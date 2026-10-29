@@ -41,6 +41,18 @@ class AtmosBaseEntity(CoordinatorEntity["UnifiedCoordinator"]):
         self._attr_device_info = build_device_info(coordinator, entry_id)
 
 
+class AtmosAlertEntity(AtmosBaseEntity):
+    """Base for alert entities, unavailable when the warnings backend failed."""
+
+    @property
+    def available(self) -> bool:
+        """Return False when the cycle failed or the warnings fetch failed alone."""
+        if not self.coordinator.last_update_success:
+            return False
+        data = self.coordinator.data
+        return data is not None and not data.warnings_failed
+
+
 class AtmosDescriptionEntity(AtmosBaseEntity):
     """Base for description-driven Atmos CE sensors.
 

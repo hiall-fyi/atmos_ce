@@ -15,6 +15,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import selector
 
+from ..http_retry import require_shape
 from ..models import (
     Alert,
     get_color_for_level,
@@ -27,6 +28,7 @@ from ..source_base import (
     classify_by_keywords,
     common_config_schema,
     compute_alert_id,
+    raise_if_all_failed,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -77,24 +79,25 @@ class CWATaiwanSource(WeatherWarningSource):
         # parameter so it does not end up in aiohttp debug logs or any
         # reverse-proxy access log between HA and CWA. The API accepts
         # the key either way.
-        data = await self._fetch_json(
+        data = await self._fetch_checked(
             session, self.API_URL,
             headers={"Authorization": api_key},
             timeout=DEFAULT_FETCH_TIMEOUT,
+            body="json",
         )
-        if data is None:
-            return []
 
         if data.get("success") != "true":
-            # CWA returns HTTP 200 with success="false" for a rejected key
-            # rather than a 401, so the auth failure has to be raised here.
+            # Live bad key is HTTP 401 (retry layer); a 200 with success=false is UNVERIFIED, kept as auth failure.
             raise ConfigEntryAuthFailed(
                 "CWA Taiwan API rejected the key (success=false)",
             )
 
-        locations = data.get("records", {}).get("location", [])
+        records: Any = data.get("records")  # require_shape below proves it is a dict
+        require_shape(isinstance(records, dict), "CWA Taiwan", "no records object")
+        locations = records.get("location")
+        require_shape(locations is None or isinstance(locations, list), "CWA Taiwan", "location is not a list")
         if not locations:
-            _LOGGER.debug("No locations found in CWA Taiwan response")
+            _LOGGER.warning("CWA Taiwan returned no locations; treating it as no alerts (rule unverified)")
             return []
 
         counties = config.get("counties", [])
@@ -119,6 +122,7 @@ class CWATaiwanSource(WeatherWarningSource):
                 _LOGGER.warning("Skipped malformed CWA Taiwan location: %s", err)
                 continue
 
+        raise_if_all_failed(len(locations), skipped, "CWA Taiwan locations")
         if skipped:
             _LOGGER.info(
                 "CWA Taiwan: parsed %d alerts, skipped %d malformed locations",
@@ -266,7 +270,8 @@ class CWATaiwanSource(WeatherWarningSource):
             return True, None
         except aiohttp.ClientError as err:
             return False, f"Failed to connect to CWA Taiwan API: {err}"
-        except Exception as err:
+        except Exception as err:  # broad on purpose: any failure becomes a config-flow error message
+            _LOGGER.exception("Unexpected error validating CWA Taiwan config: %s", err)
             return False, f"Unexpected error: {err}"
 
     def get_config_schema(self) -> vol.Schema:

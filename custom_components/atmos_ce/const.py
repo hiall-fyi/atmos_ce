@@ -8,7 +8,7 @@ from typing import Final
 DOMAIN: Final = "atmos_ce"
 
 # Version (kept in sync with manifest.json, update both together)
-VERSION: Final = "2.0.0"
+VERSION: Final = "2.1.0"
 
 # Default User-Agent for outbound HTTP requests. Several upstream APIs
 # (NWS, Meteoalarm, Met Office) ask for an identifying UA with contact.

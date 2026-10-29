@@ -1,0 +1,11 @@
+title = "atmos_ce gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Home Assistant entity description fields (key=, translation_key=, data_key=) hold snake_case identifiers, which the generic-api-key rule mistakes for secrets"
+regexTarget = "match"
+regexes = [
+  '''\b(?:data_|translation_)?key\s*=\s*"[a-z][a-z0-9]*(?:_[a-z0-9]+)+"''',
+]
