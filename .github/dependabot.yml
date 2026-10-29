@@ -8,8 +8,17 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    # One PR a week; homeassistant and its test tooling must move together.
+    groups:
+      dev-dependencies:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      actions:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]

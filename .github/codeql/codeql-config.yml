@@ -1,0 +1,6 @@
+name: "atmos_ce CodeQL config"
+
+# The wider suite adds code-quality checks on top of the default security queries.
+# No rules are excluded yet: judge the first run's alerts before silencing any.
+queries:
+  - uses: security-and-quality
