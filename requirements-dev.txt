@@ -5,8 +5,8 @@
 # live in pyproject.toml, which is not part of this repository, so a CI runner
 # would silently check against tool defaults instead.
 xmltodict==1.0.4
-ruff==0.17.2
-mypy==2.4.0
+ruff==0.17.3
+mypy==2.4.1
 
 # The test suite is not part of this repository either; these are here so a
 # fresh clone can set up the same local environment. homeassistant, pytest and
@@ -15,5 +15,5 @@ mypy==2.4.0
 # so a separate pin here only ever conflicts with it. mypy's settings are tuned
 # against that Home Assistant's type stubs, and bumping the plugin moves it.
 pytest-homeassistant-custom-component==0.13.375
-hypothesis==6.170.12
+hypothesis==6.170.13
 aioresponses==0.7.9
